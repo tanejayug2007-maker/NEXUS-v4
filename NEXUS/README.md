@@ -4,10 +4,29 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
+> **Status (v1.5.1 hotfix, 2026-10-21): not yet built with the Android toolchain** — the new drawer code and its 17 tests
+> were compiled and run on a JVM only (see [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md#verification-status-cloud-build-2026-10-21)).
+> Run `gradlew assembleDebug assembleRelease lintDebug testDebugUnitTest` before installing.
+>
 > **Status (milestone 6, 2026-10-22): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 82 unit
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## v1.5.1 — Performance & Gesture Hotfix
+
+Fixes the app drawer needing a slow swipe on the Phone (3a). Cause, fixes and how to measure on the phone:
+[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+* A quick flick up now opens the drawer. The drawer tracks the finger 1:1, and on release it springs from the finger's
+  own speed, about 200–260 ms with no bounce. Fast and slow swipes, flick-down / drag-down to close, and grabbing a
+  drawer mid-close all work.
+* Root cause: velocity samples were dropped while the drawer was being composed mid-swipe, so a fast flick read as
+  0 px/s and snapped back. The drawer is now composed ahead of time, the tracker gets every sample, and the open rule
+  projects velocity the way the system launcher does.
+* Smoother: ambient loops pause under the drawer (no per-frame full-screen re-blur), icon bounds are no longer
+  recomputed every frame, vertical swipes on Orbit rings reach the drawer, and rows cascade in with a press dip on icons.
+* `tools/phone-test/nexus-perf.ps1`: read-only before/after measurement (gfxinfo jank, frame percentiles, memory,
+  touch-to-frame and settle times).
 
 ## Milestone 6 — Control Deck reference + NEXUS notification panel
 

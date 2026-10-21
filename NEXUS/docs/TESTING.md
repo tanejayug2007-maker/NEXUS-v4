@@ -8,6 +8,16 @@ Nothing Phone (3a) before trusting them.
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
 
+## v1.5.1 — Performance & Gesture Hotfix (on the Phone (3a))
+- [ ] Home (each of Orbit, Core, a grid page): **quick short flick up** opens the drawer every time (try 20). Slow drag up follows the finger exactly and opens past half-way or with a little upward speed.
+- [ ] Release a slow drag below half-way with no speed → drawer drops back closed smoothly.
+- [ ] Orbit: a vertical swipe starting **on a ring** opens the drawer (up) / notification panel (down). A sideways or diagonal drag on a ring still spins it.
+- [ ] Drawer open: flick down on the search header, or scroll to the top of the list and keep pulling down → closes, following the finger. A long list fling that reaches the top does **not** close the drawer.
+- [ ] Rapid: flick up, flick down, flick up again before the close finishes → drawer is caught and reopens; 30 fast open/close pairs → no crash, freeze or stuck half-open drawer; tapping a half-closed drawer launches nothing.
+- [ ] Back and Home close the drawer; launching an app from it, then returning Home shows the home (drawer closed). Search shortcut / Core search still opens the drawer with the keyboard.
+- [ ] Icons dip slightly under the finger and spring back; rows rise in with a short cascade (none in Battery Saver / with animations off). Drawer styles Grid, Categories, List, Terminal, Honeycomb and Carousel all still open and close.
+- [ ] Measurements: `tools\phone-test\nexus-perf.ps1 -Label m6` with the M6 APK, then `-Label v151` with v1.5.1 (Frame stats on). Keep both reports.
+
 ## Milestone 6
 - [ ] *(emulator ✓)* Swipe down on the right: Control Deck matches the reference — `// CONTROL DECK`, big clock, battery outline + %, cyan LUMEN and magenta AUDIO gauges, POWER CELL, 8 tiles, ◇ footer, pure black.
 - [ ] LUMEN: drag changes real brightness (after "Modify system settings"); tap MANUAL/ADAPTIVE toggles adaptive. AUDIO: drag changes media volume; values glide when changed elsewhere.

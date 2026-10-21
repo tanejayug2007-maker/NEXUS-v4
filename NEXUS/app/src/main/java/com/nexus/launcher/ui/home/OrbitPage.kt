@@ -57,6 +57,7 @@ import com.nexus.launcher.ui.components.rememberBounds
 import com.nexus.launcher.ui.components.rememberHaptics
 import com.nexus.launcher.ui.components.trackBounds
 import com.nexus.launcher.ui.fx.entrance
+import com.nexus.launcher.ui.drawer.DrawerMotion
 import com.nexus.launcher.ui.fx.parallax
 import com.nexus.launcher.ui.fx.rememberAmbientClock
 import com.nexus.launcher.ui.theme.LocalNexus
@@ -160,6 +161,9 @@ fun OrbitPage(
                             if (!ch.pressed) break
                             val now = ch.position
                             if (!dragging && hypot(now.x - down.position.x, now.y - down.position.y) > viewConfiguration.touchSlop) {
+                                // The rings cover much of the page: a clearly vertical stroke is the
+                                // home swipe (drawer / notifications), not a spin. Leave it unconsumed.
+                                if (DrawerMotion.isVerticalSwipe(now.x - down.position.x, now.y - down.position.y)) break
                                 dragging = true; haptic(Haptic.TICK)
                             }
                             if (dragging) {

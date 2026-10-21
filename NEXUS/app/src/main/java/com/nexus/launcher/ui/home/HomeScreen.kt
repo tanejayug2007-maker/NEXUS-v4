@@ -35,6 +35,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +53,7 @@ import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -82,6 +85,9 @@ import com.nexus.launcher.ui.components.trackBounds
 import com.nexus.launcher.ui.console.ConsoleOverlay
 import com.nexus.launcher.ui.control.ControlCenter
 import com.nexus.launcher.ui.drawer.AppDrawer
+import com.nexus.launcher.ui.drawer.DrawerMotion
+import com.nexus.launcher.ui.drawer.NexusPerf
+import com.nexus.launcher.ui.drawer.rememberDrawerController
 import com.nexus.launcher.ui.fx.ChargingOverlay
 import com.nexus.launcher.ui.fx.EntranceOverlay
 import com.nexus.launcher.ui.fx.HudChrome
@@ -159,13 +165,28 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
     }
 
     // ---- overlay progress ----------------------------------------------------------------
-    val drawer = remember { Animatable(0f) }
+    // One owner for the drawer's progress: the finger writes it directly, releases and overlay
+    // changes hand it to a velocity-aware spring (see DrawerController / DrawerMotion).
+    val drawer = rememberDrawerController()
     val drawerOpen = overlay is Overlay.Drawer || ((overlay as? Overlay.Menu)?.target as? MenuTarget.DrawerApp)?.fromDrawer == true
-    LaunchedEffect(drawerOpen) { drawer.animateTo(if (drawerOpen) 1f else 0f, spring(dampingRatio = 0.86f, stiffness = 420f)) }
+    LaunchedEffect(drawerOpen) { drawer.follow(drawerOpen) }
+    // Opt-in measurements (Studio › Performance › Frame stats): see tools/phone-test/nexus-perf.ps1
+    SideEffect {
+        NexusPerf.enabled = cfg.showFrameStats
+        drawer.onSettled = if (!cfg.showFrameStats) null else ({ open: Boolean, ms: Long -> NexusPerf.log { "settle open=$open ms=$ms" } })
+    }
     val dim = remember { Animatable(0f) }
     val dimTarget = (overlay !is Overlay.None && overlay !is Overlay.Drawer) || linkPending
     LaunchedEffect(dimTarget) { dim.animateTo(if (dimTarget) 1f else 0f, tween(nx.dur(240))) }
     val drawerVisible by remember { derivedStateOf { drawer.value > 0.001f } }
+    // Compose the drawer once the home has settled, then keep it (unplaced while closed). The
+    // first swipe-up then only has to place and draw it, instead of composing the whole grid
+    // in the middle of the gesture, which used to drop frames exactly when the swipe started.
+    var drawerWarm by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { delay(1500); drawerWarm = true }
+    // Ambient loops (orbit spin, animated background, HUD clock) keep the home layer dirty every
+    // frame; under the drawer that forced a full-screen re-blur per frame. Pause them while it shows.
+    val homeAmbient = ambient && !drawerVisible
 
     // ---- radial marking menu -------------------------------------------------------------
     var radial by remember { mutableStateOf<RadialState?>(null) }
@@ -336,7 +357,7 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
     val insets = WindowInsets.statusBars.union(WindowInsets.displayCutout)
     val topPx = with(density) { insets.asPaddingValues().calculateTopPadding().toPx() }
     val bottomPx = with(density) { WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding().toPx() }
-    val hudClock = rememberAmbientClock(ambient && cfg.hud && nx.quality.ambientEnabled, maxFps = 30)
+    val hudClock = rememberAmbientClock(homeAmbient && cfg.hud && nx.quality.ambientEnabled, maxFps = 30)
     val pStrength = cfg.parallaxStrength
 
     CompositionLocalProvider(
@@ -347,7 +368,7 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
     ) {
         Box(Modifier.fillMaxSize()) {
             NexusBackground(
-                animate = ambient,
+                animate = homeAmbient,
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     // oversize slightly so parallax never reveals an edge
                     scaleX = 1.06f; scaleY = 1.06f
@@ -358,16 +379,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
             Box(
                 Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        val f = max(drawer.value, dim.value)
-                        val s = 1f - 0.05f * f
-                        scaleX = s; scaleY = s
-                        alpha = 1f - 0.35f * f
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && nx.quality.blur && f > 0.02f) {
-                            val r = 2f + 26f * nx.spec.blur * f
-                            renderEffect = BlurEffect(r, r, TileMode.Decal)
-                        }
-                    }
+                    // Gestures sit before the graphicsLayer: they see raw screen coordinates, not
+                    // the shrinking / blurring layer, so drag distance and velocity stay true.
                     .pinchGesture(cfg.pinchIn to cfg.pinchOut, onPinchIn = { handle(cfg.pinchIn) }, onPinchOut = { handle(cfg.pinchOut) })
                     .then(
                         if (cfg.doubleTap != GestureAction.NONE) Modifier.pointerInput(cfg.doubleTap, mode) {
@@ -378,37 +391,65 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                         val tracker = VelocityTracker()
                         var total = 0f
                         var startX = 0f
+                        var startProgress = 0f
                         var draggingDrawer = false
                         val drawerFollows = cfg.swipeUp == GestureAction.APP_DRAWER && mode != InterfaceMode.ARCHITECT
+                        val travel = DrawerMotion.travelPx(size.height.toFloat())
+                        val dpScale = this.density // the pointer scope's, not the composable's Density
                         detectVerticalDragGestures(
-                            onDragStart = { o -> total = 0f; startX = o.x; draggingDrawer = false; tracker.resetTracking(); vm.poke() },
+                            onDragStart = { o ->
+                                total = 0f; startX = o.x; draggingDrawer = false
+                                startProgress = drawer.value
+                                tracker.resetTracking()
+                            },
                             onVerticalDrag = { change, dy ->
-                                tracker.addPosition(change.uptimeMillis, change.position)
+                                // Every sample, including the historical ones Android batches
+                                // between frames: a quick flick is only a handful of events and
+                                // dropping any of them made its velocity read as ~0.
+                                tracker.addPointerInputChange(change)
                                 total += dy
                                 change.consume()
-                                if (drawerFollows && total < 0f) {
+                                if (drawerFollows && (total < 0f || draggingDrawer)) {
+                                    if (!draggingDrawer && NexusPerf.enabled) {
+                                        // touch → first frame showing the drawer under the finger
+                                        val touchMs = change.uptimeMillis
+                                        scope.launch { withFrameNanos { ft -> NexusPerf.log { "touch-to-frame ms=${ft / 1_000_000L - touchMs}" } } }
+                                    }
                                     draggingDrawer = true
-                                    val v = (-total / (size.height * 0.55f)).coerceIn(0f, 1f)
-                                    scope.launch { drawer.snapTo(v) }
+                                    drawer.drag(DrawerMotion.progressForDrag(startProgress, total, travel))
                                 }
                             },
                             onDragEnd = {
                                 val vy = tracker.calculateVelocity().y
                                 val threshold = 56.dp.toPx()
+                                val fling = DrawerMotion.FLING_DP_PER_S * dpScale
                                 when {
                                     draggingDrawer -> {
-                                        if (drawer.value > 0.28f || vy < -1100f) vm.open(Overlay.Drawer())
-                                        else scope.launch { drawer.animateTo(0f) }
+                                        val open = DrawerMotion.shouldOpen(drawer.value, vy, travel, dpScale)
+                                        NexusPerf.log { "release progress=${"%.2f".format(drawer.value)} vy=${vy.toInt()} open=$open" }
+                                        drawer.settle(open, DrawerMotion.progressVelocity(vy, travel))
+                                        if (open) { haptic(Haptic.TICK); vm.open(Overlay.Drawer()) }
                                     }
-                                    total < -threshold || vy < -1400f -> handle(cfg.swipeUp)
-                                    total > threshold || vy > 1400f -> handle(
+                                    total < -threshold || vy < -fling -> handle(cfg.swipeUp)
+                                    total > threshold || vy > fling -> handle(
                                         if (cfg.splitSwipeDown && startX > size.width / 2f) cfg.swipeDownRight else cfg.swipeDown
                                     )
                                     else -> Unit
                                 }
+                                vm.poke()
                             },
-                            onDragCancel = { if (draggingDrawer) scope.launch { drawer.animateTo(0f) } },
+                            onDragCancel = { if (draggingDrawer) drawer.settle(open = drawer.target == 1f) },
                         )
+                    }
+                    .graphicsLayer {
+                        val f = max(drawer.value, dim.value)
+                        val s = 1f - 0.05f * f
+                        scaleX = s; scaleY = s
+                        alpha = 1f - 0.35f * f
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && nx.quality.blur && f > 0.02f) {
+                            val r = 2f + 26f * nx.spec.blur * f
+                            renderEffect = BlurEffect(r, r, TileMode.Decal)
+                        }
                     }
             ) {
                 Column(Modifier.fillMaxSize()) {
@@ -434,7 +475,7 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                             when (val k = kinds.getOrNull(page)) {
                                 PageKind.Orbit -> OrbitPage(
                                     predicted = predicted, pool = orbitPool, battery = battery, badges = badges,
-                                    animate = ambient, cb = orbitCb,
+                                    animate = homeAmbient, cb = orbitCb,
                                 )
                                 PageKind.Core -> CorePage(battery, net, coreCb)
                                 is PageKind.Grid -> {
@@ -527,7 +568,7 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                 onSystemQs = { vm.close(); actions.systemGesture(GestureAction.SYSTEM_QUICK_SETTINGS) },
             )
 
-            if (drawerVisible || drawerOpen) {
+            if (drawerWarm || drawerVisible || drawerOpen) {
                 AppDrawer(
                     progress = drawer,
                     open = drawerOpen,
@@ -537,6 +578,7 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                     onMenu = { a, r -> vm.open(Overlay.Menu(MenuTarget.DrawerApp(a), r)) },
                     onWebSearch = { q -> actions.webSearch(q); vm.close() },
                     onClose = { vm.close() },
+                    onReopen = { vm.open(Overlay.Drawer()) },
                 )
             }
 

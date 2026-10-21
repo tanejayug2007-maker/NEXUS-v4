@@ -1,8 +1,5 @@
 package com.nexus.launcher.ui.drawer
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,6 +24,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import android.content.pm.ApplicationInfo
+import android.os.SystemClock
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PageSize
@@ -35,6 +33,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -47,6 +46,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +68,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker1D
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -89,7 +93,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun AppDrawer(
-    progress: Animatable<Float, AnimationVector1D>,
+    progress: DrawerController,
     open: Boolean,
     focusSearch: Boolean,
     apps: List<AppInfo>,
@@ -100,19 +104,26 @@ fun AppDrawer(
     onMenu: (AppInfo, Rect) -> Unit,
     onWebSearch: (String) -> Unit,
     onClose: () -> Unit,
+    onReopen: () -> Unit,
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     val heightPx = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+    val travel = DrawerMotion.travelPx(heightPx)
+    val isOpen by rememberUpdatedState(open)
+    val closeNow by rememberUpdatedState(onClose)
     val keyboard = LocalSoftwareKeyboardController.current
     var query by rememberSaveable { mutableStateOf("") }
     val focus = remember { FocusRequester() }
     val grid = rememberLazyGridState()
 
+    // The drawer is composed ahead of time (closed), so only reset after it has really been open.
+    var wasOpen by remember { mutableStateOf(false) }
     LaunchedEffect(open) {
-        if (!open) { query = ""; keyboard?.hide(); grid.scrollToItem(0) }
+        if (open) wasOpen = true
+        else if (wasOpen) { query = ""; keyboard?.hide(); grid.scrollToItem(0) }
     }
     LaunchedEffect(open, focusSearch) {
         if (open && focusSearch) runCatching { focus.requestFocus(); keyboard?.show() }
@@ -127,47 +138,71 @@ fun AppDrawer(
             .filter { it.first != null }.distinctBy { it.first }.map { it.first!! to it.second }
     }
 
-    val closeConnection = remember(progress) {
+    // Pull-to-close from the top of the list. Deltas here are screen-space; the velocity is
+    // tracked from them too, because the list's own tracker sees the panel moving with the
+    // finger and reads a fast flick as almost still.
+    val closeTracker = remember { VelocityTracker1D(isDataDifferential = false) }
+    var closeDrag by remember { mutableFloatStateOf(0f) }
+    fun closeDragBy(dy: Float) {
+        if (!progress.isDragging) { closeDrag = 0f; closeTracker.resetTracking() }
+        closeDrag += dy
+        closeTracker.addDataPoint(SystemClock.uptimeMillis(), closeDrag)
+        progress.drag(DrawerMotion.progressForDrag(progress.value, dy, travel))
+    }
+    fun closeRelease(velocityY: Float) {
+        val keepOpen = isOpen && DrawerMotion.shouldOpen(progress.value, velocityY, travel, density.density)
+        progress.settle(keepOpen, DrawerMotion.progressVelocity(velocityY, travel))
+        if (!keepOpen) closeNow()
+    }
+    val closeConnection = remember(progress, travel) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y < 0f && progress.value < 1f) {
-                    val v = (progress.value - available.y / heightPx).coerceIn(0f, 1f)
-                    scope.launch { progress.snapTo(v) }
+                // list scrolled upwards while the drawer is pulled down: lift the drawer first
+                if (available.y < 0f && progress.isDragging && progress.value < 1f && source == NestedScrollSource.UserInput) {
+                    closeDragBy(available.y)
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
-                if (available.y > 0f) {
-                    val v = (progress.value - available.y / heightPx).coerceIn(0f, 1f)
-                    scope.launch { progress.snapTo(v) }
+                if (available.y > 0f && source == NestedScrollSource.UserInput) {
+                    closeDragBy(available.y)
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (progress.value < 1f) {
-                    if (progress.value < 0.8f || available.y > 1800f) onClose()
-                    else progress.animateTo(1f, spring(dampingRatio = 0.85f, stiffness = 400f))
+                if (progress.isDragging) {
+                    closeRelease(closeTracker.calculateVelocity())
                     return available
                 }
                 return Velocity.Zero
             }
         }
     }
+    val shown by remember { derivedStateOf { progress.value > 0f } }
 
     Box(
         Modifier
             .fillMaxSize()
+            // Always measured (so the grid is composed before the first swipe), placed only while
+            // visible: a closed drawer costs no drawing and never intercepts the home's touches.
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                layout(placeable.width, placeable.height) { if (shown) placeable.place(0, 0) }
+            }
+            .pointerInput(open) {
+                if (open) detectTapGestures { } // swallow touches so the home below never gets them
+                else catchClosingDrawer(progress, travel, onReopen) // a swipe up mid-close reopens it
+            }
             .graphicsLayer {
                 val v = progress.value
                 alpha = (v * 1.4f).coerceIn(0f, 1f)
-                translationY = (1f - v) * size.height * 0.32f
+                translationY = (1f - v) * travel
             }
             .background(p.bg.copy(alpha = 0.82f))
-            .pointerInput(Unit) { detectTapGestures { } } // swallow touches so the home below never gets them
     ) {
         Column(
             Modifier
@@ -179,16 +214,17 @@ fun AppDrawer(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .pointerInput(Unit) {
-                        var total = 0f
+                    .pointerInput(progress, travel) {
                         detectVerticalDragGestures(
-                            onDragStart = { total = 0f },
+                            onDragStart = { closeDrag = 0f; closeTracker.resetTracking() },
                             onVerticalDrag = { ch, dy ->
-                                ch.consume(); total += dy
-                                scope.launch { progress.snapTo((1f - total / heightPx).coerceIn(0f, 1f)) }
+                                ch.consume()
+                                closeDrag += dy
+                                closeTracker.addDataPoint(ch.uptimeMillis, closeDrag)
+                                progress.drag(DrawerMotion.progressForDrag(progress.value, dy, travel))
                             },
-                            onDragEnd = { if (total > 140f) onClose() else scope.launch { progress.animateTo(1f) } },
-                            onDragCancel = { scope.launch { progress.animateTo(1f) } },
+                            onDragEnd = { closeRelease(closeTracker.calculateVelocity()) },
+                            onDragCancel = { progress.settle(isOpen) },
                         )
                     }
                     .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -252,11 +288,18 @@ fun AppDrawer(
                     Text("SEARCH WEB · “$query”", style = nx.label(10.5f, p.text))
                 }
             }
-            val cell: @Composable (AppInfo) -> Unit = { app ->
+            val cols = when (style) {
+                DrawerStyle.LIST, DrawerStyle.TERMINAL -> 1
+                else -> nx.config.drawerCols.coerceIn(3, 7)
+            }
+            val cascade = nx.quality.tier >= 1 // tier 0 = Battery Saver or system animations off
+            val cell: @Composable (AppInfo, Int) -> Unit = { app, index ->
                 val bounds = rememberBounds()
                 Box(
                     Modifier
                         .fillMaxWidth()
+                        .then(if (cascade) Modifier.drawerCascade(progress, index / cols) else Modifier)
+                        .pressFeedback()
                         .trackBounds(bounds)
                         .nexusItemGestures(
                             key = app.key.id,
@@ -291,12 +334,7 @@ fun AppDrawer(
                         val categories = style == DrawerStyle.CATEGORIES && query.isBlank()
                         val groups = remember(visibleApps, categories) { if (categories) groupByCategory(visibleApps) else emptyList() }
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(
-                                when (style) {
-                                    DrawerStyle.LIST, DrawerStyle.TERMINAL -> 1
-                                    else -> nx.config.drawerCols.coerceIn(3, 7)
-                                }
-                            ),
+                            columns = GridCells.Fixed(cols),
                             state = grid,
                             contentPadding = PaddingValues(start = 8.dp, end = 4.dp, bottom = 24.dp),
                             verticalArrangement = Arrangement.spacedBy(if (style == DrawerStyle.TERMINAL) 0.dp else 10.dp),
@@ -312,10 +350,10 @@ fun AppDrawer(
                                     item(span = { GridItemSpan(maxLineSpan) }, key = "h:$title") {
                                         Text(nx.tag(title) + " · ${list.size}", style = nx.label(10f, p.accent), modifier = Modifier.padding(start = 6.dp, top = 14.dp, bottom = 2.dp))
                                     }
-                                    items(list, key = { "c:" + it.key.id }) { app -> cell(app) }
+                                    items(list, key = { "c:" + it.key.id }, contentType = { "app" }) { app -> cell(app, 0) }
                                 }
                             } else {
-                                items(visibleApps, key = { it.key.id }) { app -> cell(app) }
+                                itemsIndexed(visibleApps, key = { _, a -> a.key.id }, contentType = { _, _ -> "app" }) { i, app -> cell(app, i) }
                             }
                         }
                         if (letters.size > 6 && !categories) {

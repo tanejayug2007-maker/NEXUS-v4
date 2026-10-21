@@ -15,18 +15,25 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onPlaced
 
-/** Non-observable holder for a composable's window bounds (written on layout, read in callbacks). */
+/**
+ * Non-observable holder for a composable's window bounds, read in callbacks (launch origin,
+ * menu anchor). It keeps the layout coordinates and resolves them only when asked:
+ * onGloballyPositioned recomputed bounds for every icon on every frame that anything above it
+ * moved (orbit spin, parallax, page swipes, the drawer sliding), work nobody ever read.
+ */
 class BoundsHolder {
-    var rect: Rect = Rect.Zero
+    internal var coordinates: LayoutCoordinates? = null
+    val rect: Rect get() = coordinates?.takeIf { it.isAttached }?.boundsInWindow() ?: Rect.Zero
 }
 
 @Composable
 fun rememberBounds(): BoundsHolder = remember { BoundsHolder() }
 
 fun Modifier.trackBounds(holder: BoundsHolder): Modifier =
-    onGloballyPositioned { holder.rect = it.boundsInWindow() }
+    onPlaced { holder.coordinates = it }
 
 /**
  * One gesture model for every icon on NEXUS:
