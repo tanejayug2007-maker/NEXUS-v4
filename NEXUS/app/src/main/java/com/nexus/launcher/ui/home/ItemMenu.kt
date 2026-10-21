@@ -23,6 +23,9 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Lock
+import com.nexus.launcher.system.SystemControls
+import com.nexus.launcher.ui.privatespace.privateReady
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AspectRatio
 import androidx.compose.material.icons.rounded.Delete
@@ -127,6 +130,10 @@ fun ItemMenu(
             if (cfg.radialMenu) add(Entry(if (a.key.id in cfg.radialApps) "Remove from radial" else "Add to radial", Icons.Rounded.Add) { vm.toggleRadial(a) })
             if (cfg.iconOverrides.containsKey(a.key.id)) add(Entry("Reset icon", Icons.Rounded.RestartAlt) { vm.setIconOverride(a.key.id, null); vm.close() })
             add(Entry(if (inDock) "Unpin from dock" else "Pin to dock", Icons.Rounded.PushPin) { vm.toggleDock(a) })
+            // Only once a lock exists, so an app can never sit in an unlocked Private Space.
+            if (cfg.privateReady()) add(Entry("Move to Private Space", Icons.Rounded.Lock) {
+                vm.setPrivate(a, true); vm.close(); SystemControls.toast(ctx, "${a.label} moved to Private Space")
+            }) else add(Entry("Set up Private Space", Icons.Rounded.Lock) { vm.openPrivateSpace() })
             add(Entry("App info", Icons.Rounded.Info) { actions.appInfo(a); vm.close() })
             add(Entry("Uninstall", Icons.Rounded.DeleteOutline) { actions.uninstall(a); vm.close() })
         }

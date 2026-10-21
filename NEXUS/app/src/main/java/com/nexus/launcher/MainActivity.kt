@@ -142,6 +142,7 @@ class MainActivity : ComponentActivity(), LauncherActions {
                 launch { vm.config.filterNotNull().distinctUntilChanged().collect { applyWindow(it) } }
                 launch { app.system.userPresent.collect { onUserPresent() } }
                 launch { app.system.powerConnected.collect { if (isResumed()) maybeShowCharging() } }
+                launch { vm.toast.collect { SystemControls.toast(this@MainActivity, it) } }
             }
         }
 
@@ -240,6 +241,7 @@ class MainActivity : ComponentActivity(), LauncherActions {
             "console" -> vm.open(Overlay.Console)
             "glyph" -> vm.open(Overlay.Glyph())
             "train" -> vm.open(Overlay.Glyph(train = true))
+            "private" -> vm.open(Overlay.PrivateSpace)
         }
     }
 
@@ -495,7 +497,8 @@ class MainActivity : ComponentActivity(), LauncherActions {
     }
 
     override fun openApp(pkg: String) {
-        val a = vm.apps.value.firstOrNull { it.component.packageName == pkg }
+        // private apps too: this is only reached from that app's own notification or media card
+        val a = (vm.apps.value + vm.privateApps.value).firstOrNull { it.component.packageName == pkg }
         if (a != null) launchApp(a, Rect.Zero)
     }
 

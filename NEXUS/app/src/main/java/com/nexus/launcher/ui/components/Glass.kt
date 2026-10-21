@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -149,7 +150,7 @@ fun GlassPanel(
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     val nx = LocalNexus.current
-    Row(modifier.padding(top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.padding(top = 22.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
         if (nx.tech) {
             Box(Modifier.size(6.dp).background(nx.palette.accent2))
             Spacer(Modifier.width(8.dp))
@@ -242,12 +243,12 @@ fun SettingRow(
     trailing: @Composable () -> Unit = {},
 ) {
     val nx = LocalNexus.current
-    Row(modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().heightIn(min = 52.dp).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = nx.body(14f))
-            if (subtitle != null) Text(subtitle, style = nx.body(11.5f, color = nx.palette.textDim))
+            Text(title, style = nx.body(14.5f))
+            if (subtitle != null) Text(subtitle, style = nx.body(12f, color = nx.palette.textDim), modifier = Modifier.padding(top = 3.dp))
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(16.dp))
         trailing()
     }
 }
@@ -268,9 +269,9 @@ fun SliderRow(
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
-    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title, style = nx.body(14f), modifier = Modifier.weight(1f))
+            Text(title, style = nx.body(14.5f), modifier = Modifier.weight(1f))
             Text(format(value), style = nx.label(11f, p.accent))
         }
         Slider(
@@ -283,7 +284,7 @@ fun SliderRow(
                 inactiveTrackColor = p.accent.copy(alpha = 0.18f),
                 activeTickColor = Color.Transparent, inactiveTickColor = Color.Transparent,
             ),
-            modifier = Modifier.height(32.dp),
+            modifier = Modifier.height(40.dp),
         )
     }
 }

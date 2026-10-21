@@ -50,7 +50,6 @@ import com.nexus.launcher.core.HomeHeader
 import com.nexus.launcher.core.NexusConfig
 import com.nexus.launcher.core.OrbitCore
 import com.nexus.launcher.core.OrbitRingStyle
-import com.nexus.launcher.core.RadialSource
 import com.nexus.launcher.core.Search
 import com.nexus.launcher.core.ShapeStyle
 import com.nexus.launcher.core.WidgetFrame
@@ -179,37 +178,13 @@ fun OrbitSection(cfg: NexusConfig, update: Upd) {
     }
 }
 
-@Composable
-fun RadialSection(cfg: NexusConfig, update: Upd) {
-    val nx = LocalNexus.current
-    var picking by remember { mutableStateOf(false) }
-    Column {
-        SectionHeader("Radial launcher")
-        SwitchRow("Enable radial launcher", cfg.radialMenu, { v -> update { it.copy(radialMenu = v) } }, "Long-press empty space, flick toward an app, release. Off = long-press opens the normal menu.")
-        if (!cfg.radialMenu) return@Column
-        SliderRow("Slots", cfg.radialSlots.toFloat(), 4f..10f, { v -> update { it.copy(radialSlots = v.roundToInt()) } }, { "${it.roundToInt()}" }, steps = 5)
-        SliderRow("Size", cfg.radialRadius, 80f..150f, { v -> update { it.copy(radialRadius = v) } }, { "${it.roundToInt()}dp" })
-        SwitchRow("Show app name while aiming", cfg.radialLabels, { v -> update { it.copy(radialLabels = v) } })
-        SwitchRow("Top slot opens home menu", cfg.radialEditSlot, { v -> update { it.copy(radialEditSlot = v) } })
-        Label("Which apps")
-        EnumChips(RadialSource.entries, cfg.radialSource) { v -> update { it.copy(radialSource = v) } }
-        if (cfg.radialSource == RadialSource.CUSTOM) {
-            Label("Custom apps · ${cfg.radialApps.size}/${cfg.radialSlots - if (cfg.radialEditSlot) 1 else 0}")
-            NxButton(if (picking) "Done" else "Choose apps", { picking = !picking })
-            if (picking) AppPicker(cfg.radialApps, max = cfg.radialSlots) { id ->
-                update { c -> c.copy(radialApps = if (id in c.radialApps) c.radialApps - id else (c.radialApps + id).take(c.radialSlots)) }
-            }
-        }
-        Text("Tip: long-press any app › Add to radial.", style = nx.body(11.5f, color = nx.palette.textDim), modifier = Modifier.padding(top = 6.dp))
-    }
-}
-
 /** Searchable checklist of installed apps (order of selection is kept). */
 @Composable
 fun AppPicker(selected: List<String>, max: Int, onToggle: (String) -> Unit) {
     val nx = LocalNexus.current
     val p = nx.palette
-    val apps by LocalContext.current.nexus.apps.apps.collectAsState()
+    // public apps only: a Private Space app pinned somewhere would just show as an empty slot
+    val apps by LocalContext.current.nexus.publicApps.collectAsState()
     var q by remember { mutableStateOf("") }
     val list = remember(apps, q) { if (q.isBlank()) apps else Search.rank(apps, q) { it.label } }
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp).clip(NxShapes.panel).background(p.panel).padding(10.dp)) {

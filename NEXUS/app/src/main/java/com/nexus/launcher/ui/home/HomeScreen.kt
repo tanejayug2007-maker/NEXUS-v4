@@ -104,6 +104,8 @@ import com.nexus.launcher.ui.fx.rememberTilt
 import com.nexus.launcher.ui.glyph.GlyphPad
 import com.nexus.launcher.ui.notifications.NotificationFeed
 import com.nexus.launcher.ui.notifications.NotificationPopup
+import com.nexus.launcher.ui.privatespace.PrivateSpaceOverlay
+import com.nexus.launcher.ui.privatespace.privateReady
 import com.nexus.launcher.ui.theme.LocalNexus
 import com.nexus.launcher.ui.widgets.WidgetPicker
 import kotlinx.coroutines.delay
@@ -143,6 +145,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
     val battery by system.battery.collectAsStateWithLifecycle()
     val net by system.net.collectAsStateWithLifecycle()
     val alerts by NotificationHub.items.collectAsStateWithLifecycle()
+    val privateApps by vm.privateApps.collectAsStateWithLifecycle()
+    val privatePackages by vm.privatePackages.collectAsStateWithLifecycle()
 
     val scope = rememberCoroutineScope()
     val haptic = rememberHaptics()
@@ -186,20 +190,36 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
     LaunchedEffect(Unit) { delay(1500); drawerWarm = true }
     // Ambient loops (orbit spin, animated background, HUD clock) keep the home layer dirty every
     // frame; under the drawer that forced a full-screen re-blur per frame. Pause them while it shows.
-    val homeAmbient = ambient && !drawerVisible
+    // M7: the same for every other overlay (deck, Signals, menus…): the home is behind it, not on show.
+    val homeAmbient = ambient && !drawerVisible && overlay == Overlay.None
+    // Full-screen opaque panels hide the home completely: once they have faded in, stop drawing the
+    // home layer at all (no blur, no orbit, no widgets rendered behind an opaque panel).
+    val opaqueOverlay = overlay == Overlay.Notifications || overlay == Overlay.Control || overlay == Overlay.PrivateSpace
+    var homeHidden by remember { mutableStateOf(false) }
+    LaunchedEffect(opaqueOverlay) { if (opaqueOverlay) { delay(450); homeHidden = true } else homeHidden = false }
+    // Blur only where the home shows through (folder, menus, widget picker, glyph pad). Under the drawer
+    // (82 % opaque) it is barely visible but costs a full-screen blur per frame: Ultra only.
+    val blurDim = !opaqueOverlay && overlay != Overlay.Console
+    val blurDrawer = nx.quality.tier >= 2
 
     // ---- radial marking menu -------------------------------------------------------------
     var radial by remember { mutableStateOf<RadialState?>(null) }
     val radialN = cfg.radialSlots.coerceIn(4, 10)
-    val radialApps: List<AppInfo?> = remember(predicted, layout, byKey, cfg.radialSource, cfg.radialApps, radialN, cfg.radialEditSlot) {
+    val radialApps: List<AppInfo?> = remember(predicted, layout, byKey, cfg.radialSource, cfg.radialApps, radialN, cfg.radialEditSlot, cfg.radialFillEmpty) {
         val dock = layout?.dock.orEmpty().mapNotNull { byKey[it.id] }
-        val custom = cfg.radialApps.mapNotNull { byKey[it] }
-        val source = when (cfg.radialSource) {
-            com.nexus.launcher.core.RadialSource.PREDICTED -> predicted + dock + apps.take(10)
-            com.nexus.launcher.core.RadialSource.DOCK -> dock + predicted + apps.take(10)
-            com.nexus.launcher.core.RadialSource.CUSTOM -> custom
-        }.distinctBy { it.key }
-        if (cfg.radialEditSlot) listOf<AppInfo?>(null) + source.take(radialN - 1) else source.take(radialN)
+        when (cfg.radialSource) {
+            // Pinned slots keep their positions; an empty / private / uninstalled slot stays empty.
+            com.nexus.launcher.core.RadialSource.CUSTOM -> com.nexus.launcher.core.RadialSlots.resolve(
+                cfg.radialApps, radialN, cfg.radialEditSlot, lookup = { byKey[it] },
+                fill = (predicted + dock + apps.take(10)).distinctBy { it.key }, fillEmpty = cfg.radialFillEmpty,
+                keyOf = { it.key.id },
+            )
+            else -> {
+                val source = if (cfg.radialSource == com.nexus.launcher.core.RadialSource.DOCK) dock + predicted + apps.take(10) else predicted + dock + apps.take(10)
+                val ring = source.distinctBy { it.key }
+                if (cfg.radialEditSlot) listOf<AppInfo?>(null) + ring.take(radialN - 1) else ring.take(radialN)
+            }
+        }
     }
     val deadPx = with(density) { 34.dp.toPx() }
     fun radialStart(o: Offset) {
@@ -372,6 +392,7 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                 modifier = Modifier.fillMaxSize().graphicsLayer {
                     // oversize slightly so parallax never reveals an edge
                     scaleX = 1.06f; scaleY = 1.06f
+                    alpha = if (homeHidden) 0f else 1f
                 }.parallax(-0.8f * pStrength),
             )
 
@@ -445,9 +466,12 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                         val f = max(drawer.value, dim.value)
                         val s = 1f - 0.05f * f
                         scaleX = s; scaleY = s
-                        alpha = 1f - 0.35f * f
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && nx.quality.blur && f > 0.02f) {
-                            val r = 2f + 26f * nx.spec.blur * f
+                        // alpha 0: the RenderThread skips the whole home subtree while it is covered
+                        alpha = if (homeHidden) 0f else 1f - 0.35f * f
+                        val b = max(if (blurDrawer) drawer.value else 0f, if (blurDim) dim.value else 0f)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && nx.quality.blur && b > 0.02f && !homeHidden) {
+                            // whole-pixel radii: the effect is only rebuilt when the radius actually changes
+                            val r = (2f + 26f * nx.spec.blur * b).toInt().toFloat()
                             renderEffect = BlurEffect(r, r, TileMode.Decal)
                         }
                     }
@@ -523,7 +547,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                 HudChrome(
                     battery = battery, net = net, clock = hudClock, topInsetPx = topPx, bottomInsetPx = bottomPx,
                     // paused under overlays (drawer, deck, feed…) so it doesn't show through them
-                    ticker = cfg.hudTicker && overlay == Overlay.None, modifier = Modifier.entrance(14).parallax(-0.25f * pStrength),
+                    ticker = cfg.hudTicker && overlay == Overlay.None,
+                    modifier = Modifier.graphicsLayer { alpha = if (homeHidden) 0f else 1f }.entrance(14).parallax(-0.25f * pStrength),
                 )
             }
 
@@ -559,6 +584,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                 onClose = { vm.close() },
                 battery = battery, torch = actions.torch,
                 onOpenDeck = { vm.open(Overlay.Control) },
+                hiddenPkgs = if (cfg.privateHideNotifications) privatePackages else emptySet(),
+                onOpenApp = { pkg -> actions.openApp(pkg) },
             )
 
             ControlCenter(
@@ -577,12 +604,24 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                     onLaunch = { a, r -> actions.launchApp(a, r); scope.launch { delay(350); vm.close() } },
                     onMenu = { a, r -> vm.open(Overlay.Menu(MenuTarget.DrawerApp(a), r)) },
                     onWebSearch = { q -> actions.webSearch(q); vm.close() },
+                    privateEntry = (privateApps.isNotEmpty() || cfg.privateReady()) && cfg.privateEntryVisible,
+                    privateSearchable = privateApps.isNotEmpty() || cfg.privateReady(),
+                    onPrivate = { vm.openPrivateSpace() },
                     onClose = { vm.close() },
                     onReopen = { vm.open(Overlay.Drawer()) },
                 )
             }
 
             ConsoleOverlay(visible = overlay == Overlay.Console, vm = vm, actions = actions)
+
+            PrivateSpaceOverlay(
+                visible = overlay == Overlay.PrivateSpace,
+                cfg = cfg, update = { t -> vm.updateConfig(t) },
+                privateApps = privateApps, publicApps = apps, labelOf = labelOf,
+                onLaunch = { a, r -> actions.launchApp(a, r) },
+                onSetPrivate = { a, priv -> vm.setPrivate(a, priv) },
+                onClose = { vm.close() },
+            )
 
             val glyph = overlay as? Overlay.Glyph
             GlyphPad(visible = glyph != null, train = glyph?.train == true, vm = vm, onTarget = { t -> runTarget(t) }, onClose = { vm.close() })

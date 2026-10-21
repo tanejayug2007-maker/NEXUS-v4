@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -105,6 +106,11 @@ fun AppDrawer(
     onWebSearch: (String) -> Unit,
     onClose: () -> Unit,
     onReopen: () -> Unit,
+    /** Show the ◈ PRIVATE chip in the header. */
+    privateEntry: Boolean = false,
+    /** A Private Space exists: searching "private" offers it even when the chip is hidden. */
+    privateSearchable: Boolean = false,
+    onPrivate: () -> Unit = {},
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
@@ -264,11 +270,14 @@ fun AppDrawer(
                     }
                 }
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    if (!nx.tech) (if (query.isBlank()) "${visibleApps.size} apps" else "${visibleApps.size} results") else if (query.isBlank()) "// INDEX · ${visibleApps.size} MODULES" else "// MATCHES · ${visibleApps.size}",
-                    style = nx.label(9f, p.textFaint),
-                    modifier = Modifier.padding(start = 6.dp, top = 4.dp),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        if (!nx.tech) (if (query.isBlank()) "${visibleApps.size} apps" else "${visibleApps.size} results") else if (query.isBlank()) "// INDEX · ${visibleApps.size} MODULES" else "// MATCHES · ${visibleApps.size}",
+                        style = nx.label(9f, p.textFaint),
+                        modifier = Modifier.padding(start = 6.dp, top = 4.dp).weight(1f),
+                    )
+                    if (privateEntry) PrivateChip(onPrivate)
+                }
             }
 
             val style = nx.config.drawerStyle
@@ -344,6 +353,9 @@ fun AppDrawer(
                                 .nestedScroll(closeConnection)
                                 .windowInsetsPadding(WindowInsets.navigationBars),
                         ) {
+                            if (privateSearchable && query.isNotBlank() && "private".startsWith(query.trim().lowercase()) && query.trim().length >= 3) {
+                                item(span = { GridItemSpan(maxLineSpan) }, key = "private") { PrivateRow(onPrivate) }
+                            }
                             if (query.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }, key = "web") { webRow() }
                             if (categories) {
                                 groups.forEach { (title, list) ->
@@ -378,6 +390,36 @@ fun AppDrawer(
     }
 }
 
+
+@Composable
+private fun PrivateChip(onClick: () -> Unit) {
+    val nx = LocalNexus.current
+    val p = nx.palette
+    Row(
+        Modifier.clip(NxShapes.chip).border(1.dp, p.accent2.copy(alpha = 0.6f), NxShapes.chip).clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Lock, null, tint = p.accent2, modifier = Modifier.size(12.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(nx.caps("Private"), style = nx.label(9f, p.accent2))
+    }
+}
+
+@Composable
+private fun PrivateRow(onClick: () -> Unit) {
+    val nx = LocalNexus.current
+    val p = nx.palette
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp).clip(NxShapes.chip)
+            .background(p.accent2.copy(alpha = 0.08f)).clickable(onClick = onClick).padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(Icons.Rounded.Lock, null, tint = p.accent2, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(nx.caps("Open Private Space"), style = nx.label(10.5f, p.text))
+    }
+}
 
 private fun groupByCategory(apps: List<AppInfo>): List<Pair<String, List<AppInfo>>> {
     fun name(app: AppInfo): String = when (app.info.applicationInfo.category) {

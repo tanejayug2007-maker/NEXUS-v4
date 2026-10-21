@@ -13,8 +13,8 @@ android {
         applicationId = "com.nexus.launcher"
         minSdk = 29          // Android 10+. Every Nothing Phone ships Android 12 or newer.
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.5.1"
+        versionCode = 8
+        versionName = "1.6.0-m7"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

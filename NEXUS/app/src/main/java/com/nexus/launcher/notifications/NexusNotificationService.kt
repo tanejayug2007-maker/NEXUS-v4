@@ -9,7 +9,9 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.MediaMetadata
 import android.media.session.MediaController
+import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
+import android.app.RemoteInput
 import android.media.session.PlaybackState
 import android.os.Build
 import android.os.Handler
@@ -37,6 +39,29 @@ data class NexusNotification(
     val user: UserHandle,
     val contentIntent: PendingIntent?,
     val autoCancel: Boolean,
+    /** The sender's own actions (reply, mark as read, mute…), in display order. Never invented. */
+    val actions: List<NexusAction> = emptyList(),
+    /** Conversation layout: MessagingStyle, category "msg" or a reply box. */
+    val messaging: Boolean = false,
+    /** Last few messages of a conversation (MessagingStyle), oldest first. */
+    val messages: List<NexusMessage> = emptyList(),
+    /** A player's media notification (has a media session or MediaStyle). Shown as the media card. */
+    val media: Boolean = false,
+    internal val mediaToken: MediaSession.Token? = null,
+)
+
+data class NexusMessage(val sender: String, val text: String, val time: Long)
+
+/** One of the sending app's notification actions. */
+class NexusAction(
+    val title: String,
+    val kind: ActionKind,
+    internal val intent: PendingIntent,
+    internal val remoteInputs: Array<RemoteInput>,
+    /** The reply box accepts free text (RemoteInput.allowFreeFormInput). */
+    val freeForm: Boolean,
+    /** The app says this action opens its UI (so the panel should close). */
+    val opensUi: Boolean,
 )
 
 data class MediaState(
@@ -46,6 +71,11 @@ data class MediaState(
     val playing: Boolean,
     val pkg: String,
     internal val controller: MediaController,
+    /** Player app name, e.g. "YouTube Music". */
+    val appLabel: String = "",
+    val album: String = "",
+    val canPrevious: Boolean = true,
+    val canNext: Boolean = true,
 )
 
 /** Bridge between the system-bound listener service and the launcher UI. */
@@ -89,6 +119,26 @@ object NotificationHub {
         } catch (e: PendingIntent.CanceledException) {
             false
         }
+    }
+
+    /**
+     * Fires one of the sender's actions. [reply] goes into its RemoteInput the same way the system
+     * shade sends an inline reply. Returns false if the app has cancelled the action meanwhile.
+     */
+    fun runAction(context: Context, action: NexusAction, reply: CharSequence? = null): Boolean = try {
+        if (reply != null && action.remoteInputs.isNotEmpty()) {
+            val results = android.os.Bundle()
+            action.remoteInputs.filter { it.allowFreeFormInput }.forEach { results.putCharSequence(it.resultKey, reply) }
+            val fill = android.content.Intent().addFlags(android.content.Intent.FLAG_RECEIVER_FOREGROUND)
+            RemoteInput.addResultsToIntent(action.remoteInputs, fill, results)
+            RemoteInput.setResultsSource(fill, RemoteInput.SOURCE_FREE_FORM_INPUT)
+            action.intent.send(context, 0, fill)
+        } else {
+            action.intent.send()
+        }
+        true
+    } catch (e: PendingIntent.CanceledException) {
+        false
     }
 
     fun play() = _media.value?.controller?.transportControls?.play()
@@ -147,7 +197,11 @@ class NexusNotificationService : NotificationListenerService() {
         refreshAll()
         val n = sbn?.let { toNexus(it) } ?: return
         val summary = (sbn.notification.flags and Notification.FLAG_GROUP_SUMMARY) != 0
-        if (!n.ongoing && !summary && (n.title.isNotBlank() || n.text.isNotBlank())) NotificationHub.emitPosted(n)
+        if (!n.ongoing && !n.media && !summary && (n.title.isNotBlank() || n.text.isNotBlank())) NotificationHub.emitPosted(n)
+        // A player posted its media notification: use that session even if the session list hasn't caught up.
+        if (n.media && n.mediaToken != null && activeController?.sessionToken != n.mediaToken) {
+            runCatching { pickController(listOf(MediaController(this, n.mediaToken)) + currentSessions()) }
+        }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
@@ -178,6 +232,14 @@ class NexusNotificationService : NotificationListenerService() {
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString().orEmpty()
         val text = (extras.getCharSequence(Notification.EXTRA_BIG_TEXT) ?: extras.getCharSequence(Notification.EXTRA_TEXT))
             ?.toString().orEmpty()
+        val template = extras.getString(Notification.EXTRA_TEMPLATE)
+        val token = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            extras.getParcelable(Notification.EXTRA_MEDIA_SESSION, MediaSession.Token::class.java)
+        } else {
+            @Suppress("DEPRECATION") extras.getParcelable(Notification.EXTRA_MEDIA_SESSION) as? MediaSession.Token
+        }
+        val actions = n.actions.orEmpty().mapNotNull { a -> toAction(a) }
+        val ordered = ActionKinds.ordered(actions, { it.kind })
         return NexusNotification(
             key = sbn.key,
             pkg = sbn.packageName,
@@ -191,8 +253,50 @@ class NexusNotificationService : NotificationListenerService() {
             user = sbn.user,
             contentIntent = n.contentIntent,
             autoCancel = (n.flags and Notification.FLAG_AUTO_CANCEL) != 0,
+            actions = ordered,
+            messaging = ActionKinds.isMessaging(n.category, template, actions.any { it.kind == ActionKind.REPLY }),
+            messages = messagesOf(extras),
+            media = token != null || template?.endsWith("MediaStyle") == true,
+            mediaToken = token,
         )
     }
+
+    private fun toAction(a: Notification.Action): NexusAction? {
+        val pi = a.actionIntent ?: return null
+        val title = a.title?.toString().orEmpty()
+        val inputs: Array<RemoteInput> = a.remoteInputs?.filterNotNull()?.toTypedArray() ?: emptyArray()
+        val freeForm = inputs.any { it.allowFreeFormInput }
+        if (title.isBlank() && !freeForm) return null
+        return NexusAction(
+            title = title,
+            kind = ActionKinds.classify(a.semanticAction, title, freeForm),
+            intent = pi,
+            remoteInputs = inputs,
+            freeForm = freeForm,
+            // set by NotificationCompat (WhatsApp, Telegram…): "mark as read"/"mute" say false
+            opensUi = a.extras?.getBoolean("android.support.action.showsUserInterface", kindOpensUi(title)) ?: false,
+        )
+    }
+
+    /** Without the compat flag: anything that isn't a reply / read / mute probably opens the app. */
+    private fun kindOpensUi(title: String) = ActionKinds.classify(ActionKinds.SEMANTIC_NONE, title, false) == ActionKind.OTHER
+
+    private fun messagesOf(extras: android.os.Bundle): List<NexusMessage> {
+        val raw = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            extras.getParcelableArray(Notification.EXTRA_MESSAGES, android.os.Parcelable::class.java)
+        } else {
+            @Suppress("DEPRECATION") extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+        } ?: return emptyList()
+        return runCatching {
+            Notification.MessagingStyle.Message.getMessagesFromBundleArray(raw).takeLast(6).map { m ->
+                NexusMessage(m.senderPerson?.name?.toString() ?: "", m.text?.toString().orEmpty(), m.timestamp)
+            }.filter { it.text.isNotBlank() }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun currentSessions(): List<MediaController> = runCatching {
+        sessionManager?.getActiveSessions(ComponentName(this, NexusNotificationService::class.java)).orEmpty()
+    }.getOrDefault(emptyList())
 
     private fun labelFor(pkg: String): String = labels.getOrPut(pkg) {
         runCatching {
@@ -220,14 +324,22 @@ class NexusNotificationService : NotificationListenerService() {
             ?: md?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST).orEmpty()
         val art = md?.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART) ?: md?.getBitmap(MediaMetadata.METADATA_KEY_ART)
         val scaled = art?.let { if (it.width > 256) Bitmap.createScaledBitmap(it, 256, 256 * it.height / it.width.coerceAtLeast(1), true) else it }
+        val state = c.playbackState
+        val supported = state?.actions ?: 0L
+        // A player that reports no actions at all still gets both buttons (many do this while buffering).
+        fun can(flag: Long) = supported == 0L || (supported and flag) != 0L
         NotificationHub.setMedia(
             MediaState(
                 title = title,
                 artist = artist,
                 art = scaled,
-                playing = c.playbackState?.state == PlaybackState.STATE_PLAYING,
+                playing = state?.state == PlaybackState.STATE_PLAYING || state?.state == PlaybackState.STATE_BUFFERING,
                 pkg = c.packageName,
                 controller = c,
+                appLabel = labelFor(c.packageName),
+                album = md?.getString(MediaMetadata.METADATA_KEY_ALBUM).orEmpty(),
+                canPrevious = can(PlaybackState.ACTION_SKIP_TO_PREVIOUS),
+                canNext = can(PlaybackState.ACTION_SKIP_TO_NEXT),
             )
         )
     }

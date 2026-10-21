@@ -17,6 +17,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -40,6 +44,15 @@ class NexusApp : Application() {
     lateinit var config: StateFlow<NexusConfig?>
         private set
 
+    /**
+     * Every app NOT in the Private Space: what drawer, search, orbit, radial, home pages and widgets
+     * see. [privateApps] is only read by the (authenticated) Private Space screen.
+     */
+    lateinit var publicApps: StateFlow<List<com.nexus.launcher.core.AppInfo>>
+        private set
+    lateinit var privateApps: StateFlow<List<com.nexus.launcher.core.AppInfo>>
+        private set
+
     override fun onCreate() {
         super.onCreate()
         store = ConfigStore(this)
@@ -48,6 +61,12 @@ class NexusApp : Application() {
         system = SystemMonitor(this).also { it.startGlobal() }
         weather = WeatherRepository(this)
         config = store.config.stateIn(appScope, SharingStarted.Eagerly, null)
+        // Waits for the real config: never shows a private app publicly while settings are still loading.
+        val privateIds = config.filterNotNull().map { it.privateApps }.distinctUntilChanged()
+        publicApps = combine(apps.apps, privateIds) { list, priv -> if (priv.isEmpty()) list else list.filter { it.key.id !in priv } }
+            .stateIn(appScope, SharingStarted.Eagerly, emptyList())
+        privateApps = combine(apps.apps, privateIds) { list, priv -> list.filter { it.key.id in priv } }
+            .stateIn(appScope, SharingStarted.Eagerly, emptyList())
 
         appScope.launch { apps.changed.collect { icons.invalidatePackage(it) } }
         appScope.launch { system.screenOn.collect { com.nexus.launcher.lock.LockLayerActivity.maybeShow(this@NexusApp) } }

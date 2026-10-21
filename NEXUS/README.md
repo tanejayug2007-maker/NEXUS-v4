@@ -4,6 +4,12 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
+> **Status (milestone 7 / v1.6.0, 2026-10-21): not yet built with the Android toolchain and not run on a device or emulator.**
+> The cloud machine could not reach Google's Maven repository. Every source file was type-checked against Compose 1.7.3 + the
+> Android 15 SDK (0 errors), and 55 JVM unit tests pass (35 existing core tests + 20 new). The calculator, settings-hub, theme and
+> camera-probe tests were not run here. Build in Android Studio
+> (`gradlew assembleDebug assembleRelease lintDebug testDebugUnitTest`) and follow [`docs/TESTING.md`](docs/TESTING.md) on the phone.
+>
 > **Status (v1.5.1 hotfix, 2026-10-21): not yet built with the Android toolchain** — the new drawer code and its 17 tests
 > were compiled and run on a JVM only (see [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md#verification-status-cloud-build-2026-10-21)).
 > Run `gradlew assembleDebug assembleRelease lintDebug testDebugUnitTest` before installing.
@@ -12,6 +18,28 @@ notification feed, a spaceship-style control deck and a full Customization Studi
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 7 — smoother launcher, Signals actions, pinned radial, roomier Studio, Private Space
+
+* **Smoother:** includes the v1.5.1 drawer fixes (quick flick opens, 1:1 finger tracking, velocity spring, drawer
+  pre-composed). New: the home is no longer drawn behind fully opaque panels (Signals, Control Deck, Private Space);
+  ambient animation pauses under every overlay; the full-screen blur is used only where the home shows through
+  (folders, menus), and under the drawer only in Ultra mode; icon textures upload in the background before first use.
+* **Signals panel:** the separate upper PLAYBACK box is gone. There is one media card with player name, title, artist,
+  album art and ◀◀ ▶/❚❚ ▶▶ driven by the player's own media session. The player's duplicate notification is folded into it.
+* **Notification actions:** cards expand (▾ reply · actions) to the app's own actions. **Reply inline** where the app
+  offers a reply box (RemoteInput, as WhatsApp / Instagram / Telegram / Messages do), **Mark as read** and **Mute** where
+  the app offers them, plus up to two other app actions. Nothing is faked: without them the card says so.
+  Conversations show their last messages.
+* **Radial launcher = your apps:** fixed slots you choose in Studio › Radial (assign, move ↑↓, clear, reset, clear all),
+  or long-press › Add to radial. They stay until you change them. "Recent" and "Dock" remain as optional automatic
+  modes. On first start, M7 pins the apps your radial was showing, so nothing jumps.
+* **Studio:** each section is its own padded card with more spacing. The live preview has HOME / DRAWER / RADIAL /
+  SIGNALS views that follow the section you are editing, flash UPDATED on every change, and collapse.
+* **Private Space (launcher-level):** hide apps from drawer, search, orbit, radial, home pages and NEXUS notifications.
+  Unlock with a NEXUS PIN (hashed) or the phone's fingerprint / screen lock. It is **not** Android's isolated
+  system profile: see [`docs/PRIVATE_SPACE.md`](docs/PRIVATE_SPACE.md).
+* New permission: `USE_BIOMETRIC` (normal, granted at install) for the phone-lock option. No root, no Accessibility.
 
 ## v1.5.1 — Performance & Gesture Hotfix
 

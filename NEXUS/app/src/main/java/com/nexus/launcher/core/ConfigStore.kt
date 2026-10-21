@@ -78,7 +78,8 @@ class ConfigStore(private val context: Context) {
     suspend fun exportJson(): String {
         val p = data.first()
         val backup = NexusBackup(
-            config = decodeConfig(p[keyConfig]),
+            // The Private Space (which apps, PIN hash) never leaves the phone in a backup file.
+            config = decodeConfig(p[keyConfig]).copy(privateApps = emptySet(), privatePinHash = "", privateLock = PrivateLock.PIN),
             layout = p[keyLayout]?.let { runCatching { NexusJson.decodeFromString(HomeLayout.serializer(), it) }.getOrNull() },
         )
         return NexusJson.encodeToString(NexusBackup.serializer(), backup)
@@ -90,7 +91,13 @@ class ConfigStore(private val context: Context) {
         require(backup.format == "nexus-backup") { "Not a NEXUS backup file" }
         val layout = backup.layout?.let { LayoutOps.stripWidgets(it) }
         context.nexusStore.edit { p ->
-            p[keyConfig] = NexusJson.encodeToString(NexusConfig.serializer(), backup.config.copy(iconOverrides = emptyMap()))
+            val current = decodeConfig(p[keyConfig])
+            // keep this phone's Private Space: an imported file must not expose or unlock private apps
+            val cfg = backup.config.copy(
+                iconOverrides = emptyMap(),
+                privateApps = current.privateApps, privatePinHash = current.privatePinHash, privateLock = current.privateLock,
+            )
+            p[keyConfig] = NexusJson.encodeToString(NexusConfig.serializer(), cfg)
             if (layout != null) p[keyLayout] = NexusJson.encodeToString(HomeLayout.serializer(), layout)
         }
     }

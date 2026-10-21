@@ -8,6 +8,41 @@ Nothing Phone (3a) before trusting them.
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
 
+## Milestone 7 (on the Phone (3a)) — nothing below has been run on a device or emulator yet
+**Smoothness**
+- [ ] All v1.5.1 drawer checks below still pass (quick flick opens, follows the finger, flick down closes, rapid open/close).
+- [ ] Open Signals / Control Deck: the panel itself animates smoothly; Back returns to a home that looks exactly as before (orbit spinning again, background animating).
+- [ ] Long-press an app (menu) / open a folder: home behind is still blurred (Android 12+). Drawer in Balanced: no blur behind it (dim + scale only); Ultra: blur.
+- [ ] `tools\phone-test\nexus-perf.ps1 -Label m7` (Frame stats on) and compare janky % with your M6 report.
+
+**Signals panel**
+- [ ] Play YouTube Music: **one** media card (no upper PLAYBACK box, no second YouTube Music card) with app name, title, artist, album art.
+- [ ] ◀◀ / ▶ ❚❚ / ▶▶ control the song; pausing in the app updates the card within a second. Tap the card → opens the player.
+- [ ] Spotify / YouTube / another player: same card; a second player's own notification is still listed normally.
+
+**Notification actions**
+- [ ] WhatsApp message: card shows ▾ REPLY · ACTIONS → Reply / Mark as read (and Mute if WhatsApp offers it on your build). Inline reply arrives in the chat; Mark as read clears it.
+- [ ] Instagram DM, Telegram, Google Messages: note which of Reply / Mark as read / Mute each one offers (they differ by app and version).
+- [ ] An app with no actions: expanding says "No quick actions from this app"; tapping opens it.
+- [ ] Group chat: expanded card lists the last messages with senders.
+
+**Radial**
+- [ ] After upgrading from M6: long-press empty home → the same apps as before, in the same places; they no longer change by themselves.
+- [ ] Studio › Radial: assign an app to slot 3, move it up/down, clear a slot (stays empty on the ring), Reset to defaults, Clear all. Long-press app › Add to radial fills the first empty slot.
+- [ ] "Recent" mode still works and is labelled automatic.
+
+**Studio**
+- [ ] Sections are separate cards with more space; nothing is cut off on the 3a's screen.
+- [ ] Live preview switches to RADIAL / DRAWER / SIGNALS when you scroll to those sections; tapping a tab pins it; every change flashes UPDATED; collapse/expand works.
+
+**Private Space**
+- [ ] Long-press app › Set up Private Space → choose PIN (twice) or phone lock (fingerprint prompt appears).
+- [ ] Move 2 apps in: they vanish from drawer, drawer search, orbit, radial, home page and dock; their notifications vanish from Signals (still in Android's shade: expected).
+- [ ] Drawer ◈ PRIVATE → PIN pad / fingerprint → private apps open; launching one and returning Home locks it again.
+- [ ] 5 wrong PINs → 30 s wait. Turn off the drawer chip → typing "private" in search offers it.
+- [ ] Studio › Private Space › Manage (unlock) → move apps out, change PIN, switch to phone lock, Turn off (unhide all).
+- [ ] Export a backup → the file has no `privateApps` entries and an empty `privatePinHash`.
+
 ## v1.5.1 — Performance & Gesture Hotfix (on the Phone (3a))
 - [ ] Home (each of Orbit, Core, a grid page): **quick short flick up** opens the drawer every time (try 20). Slow drag up follows the finger exactly and opens past half-way or with a little upward speed.
 - [ ] Release a slow drag below half-way with no speed → drawer drops back closed smoothly.

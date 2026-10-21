@@ -295,7 +295,7 @@ internal fun BoxScope.FavoritesModule(style: Int) {
     val p = nx.palette
     val app = LocalContext.current.nexus
     val actions = LocalLauncherActions.current
-    val apps by app.apps.apps.collectAsState()
+    val apps by app.publicApps.collectAsState() // never Private Space apps
     val usage by app.store.usage.collectAsState(emptyMap())
     val favs = remember(apps, usage) {
         val byId = apps.associateBy { it.key.id }

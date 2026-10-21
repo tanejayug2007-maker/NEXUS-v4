@@ -19,6 +19,7 @@ import com.nexus.launcher.core.FxQuality
 import com.nexus.launcher.core.GlyphBinding
 import com.nexus.launcher.core.InterfaceMode
 import com.nexus.launcher.core.Predictor
+import com.nexus.launcher.core.RadialSlots
 import com.nexus.launcher.core.HomeItem
 import com.nexus.launcher.core.HomeLayout
 import com.nexus.launcher.core.HomePage
@@ -55,6 +56,8 @@ sealed interface Overlay {
     data object WidgetPicker : Overlay
     data object Console : Overlay
     data class Glyph(val train: Boolean = false) : Overlay
+    /** Launcher-level Private Space (authenticates before showing anything). */
+    data object PrivateSpace : Overlay
 }
 
 enum class LineKind { INPUT, OUT, ERR, SYS }
@@ -76,7 +79,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val store = nx.store
 
     val config: StateFlow<NexusConfig?> = nx.config
-    val apps: StateFlow<List<AppInfo>> = nx.apps.apps
+    /** Public apps only: Private Space apps never reach drawer, search, orbit, radial or home pages. */
+    val apps: StateFlow<List<AppInfo>> = nx.publicApps
+    val privateApps: StateFlow<List<AppInfo>> = nx.privateApps
+    /** Packages whose every launcher entry is private (a package also visible publicly is not hidden). */
+    val privatePackages: StateFlow<Set<String>> = combine(nx.privateApps, nx.publicApps) { priv, pub ->
+        val shown = pub.mapTo(HashSet()) { it.component.packageName }
+        priv.map { it.component.packageName }.filterTo(HashSet()) { it !in shown }
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
     val appsByKey: StateFlow<Map<String, AppInfo>> =
         apps.map { list -> list.associateBy { it.key.id } }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
@@ -152,7 +162,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val cols get() = config.value?.gridCols ?: 4
     private val rows get() = config.value?.gridRows ?: 5
 
+    private val _toast = MutableSharedFlow<String>(extraBufferCapacity = 4)
+    /** Short messages for the activity to show as a toast. */
+    val toast: SharedFlow<String> = _toast
+
     init {
+        // Re-runs whenever the flag is cleared (fresh install, Studio "Reset all", an old backup).
+        viewModelScope.launch {
+            config.filterNotNull().map { it.radialPinnedV7 }.distinctUntilChanged().collect { done -> if (!done) pinRadialOnce() }
+        }
         // Follows the stored layout: first load, Studio "reset layout" (null) and backup imports.
         viewModelScope.launch {
             store.layout.collect { stored ->
@@ -178,6 +196,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             NotificationHub.posted.collect { n ->
                 val cfg = config.value ?: return@collect
                 if (!_resumed.value || !cfg.notifPopups || _overlay.value == Overlay.Notifications) return@collect
+                if (cfg.privateHideNotifications && n.pkg in privatePackages.value) return@collect
                 _popup.value = n
                 popupJob?.cancel()
                 popupJob = launch { delay(4200); if (_popup.value?.key == n.key) _popup.value = null }
@@ -191,6 +210,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         _resumed.value = r
         if (r) { hour.value = java.time.LocalTime.now().hour; poke() } else {
             _ambient.value = false
+            // Leaving NEXUS (app launched, screen off, Recents) always locks the Private Space again.
+            if (_overlay.value == Overlay.PrivateSpace) close()
             flushLayout()
         }
     }
@@ -382,13 +403,56 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         close()
     }
 
+    /** Long-press menu › Add to / Remove from radial: pins into the first empty slot (positions never shift). */
     fun toggleRadial(app: AppInfo) {
         updateConfig { c ->
-            val next = if (app.key.id in c.radialApps) c.radialApps - app.key.id else (c.radialApps + app.key.id).takeLast(9)
+            val n = RadialSlots.pinnable(c.radialSlots, c.radialEditSlot)
+            val pinned = app.key.id in c.radialApps
+            val next = if (pinned) RadialSlots.remove(c.radialApps, n, app.key.id) else RadialSlots.add(c.radialApps, n, app.key.id)
+            if (!pinned && app.key.id !in next) _toast.tryEmit("Radial is full — free a slot in Studio › Radial")
             c.copy(radialApps = next, radialSource = com.nexus.launcher.core.RadialSource.CUSTOM)
         }
         close()
     }
+
+    /**
+     * One-time M7 upgrade: freezes the apps the radial was showing (recent / dock based) into pinned
+     * slots, so nothing visibly changes but from now on they stay put until the user edits them.
+     */
+    private suspend fun pinRadialOnce() {
+        val c = config.filterNotNull().first()
+        if (c.radialPinnedV7) return
+        nx.apps.loaded.first { it }
+        val lay = _layout.filterNotNull().first()
+        val pub = nx.publicApps.first { it.isNotEmpty() }
+        val ids = pub.mapTo(HashSet()) { it.key.id }
+        val usage = runCatching { nx.store.usage.first() }.getOrDefault(emptyMap())
+        val predictedIds = Predictor.rank(usage, java.time.LocalTime.now().hour, 12).filter { it in ids }
+        val dock = lay.dock.map { it.id }.filter { it in ids }
+        val firstApps = pub.take(10).map { it.key.id }
+        val shown = when (c.radialSource) {
+            com.nexus.launcher.core.RadialSource.CUSTOM -> c.radialApps.ifEmpty { dock + predictedIds + firstApps }
+            com.nexus.launcher.core.RadialSource.DOCK -> dock + predictedIds + firstApps
+            com.nexus.launcher.core.RadialSource.PREDICTED -> predictedIds + dock + firstApps
+        }.filter { it.isNotEmpty() }.distinct()
+        store.updateConfig { cur ->
+            if (cur.radialPinnedV7) cur
+            else cur.copy(
+                radialApps = RadialSlots.normalize(shown, RadialSlots.pinnable(cur.radialSlots, cur.radialEditSlot)),
+                radialSource = com.nexus.launcher.core.RadialSource.CUSTOM,
+                radialPinnedV7 = true,
+            )
+        }
+    }
+
+    // ---- Private Space ------------------------------------------------------------------------
+
+    /** Moves [app] into or out of the Private Space. Its home-screen spot is kept for when it returns. */
+    fun setPrivate(app: AppInfo, private: Boolean) {
+        updateConfig { c -> c.copy(privateApps = if (private) c.privateApps + app.key.id else c.privateApps - app.key.id) }
+    }
+
+    fun openPrivateSpace() = open(Overlay.PrivateSpace)
 
     fun setNexusStyle(itemId: String, style: Int) {
         val l = _layout.value ?: return

@@ -104,10 +104,14 @@ fun NotificationFeed(
     battery: com.nexus.launcher.core.BatteryState = com.nexus.launcher.core.BatteryState(),
     torch: com.nexus.launcher.system.TorchController? = null,
     onOpenDeck: () -> Unit = {},
+    /** Packages in the Private Space whose notifications stay out of this panel. */
+    hiddenPkgs: Set<String> = emptySet(),
+    onOpenApp: (String) -> Unit = {},
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
-    val items by NotificationHub.items.collectAsStateWithLifecycle()
+    val all by NotificationHub.items.collectAsStateWithLifecycle()
+    val items = remember(all, hiddenPkgs) { if (hiddenPkgs.isEmpty()) all else all.filterNot { it.pkg in hiddenPkgs } }
     val connected by NotificationHub.connected.collectAsStateWithLifecycle()
     val media by NotificationHub.media.collectAsStateWithLifecycle()
     val expanded = remember { mutableStateMapOf<String, Boolean>() }
@@ -128,7 +132,11 @@ fun NotificationFeed(
                 }
                 .windowInsetsPadding(WindowInsets.safeDrawing)
         ) {
-            val groups = items.groupBy { it.pkg }.toList().sortedByDescending { (_, l) -> l.maxOf { it.postTime } }
+            // The player's own media notification is replaced by the one media card (no duplicate song).
+            val m = media?.takeIf { it.pkg !in hiddenPkgs }
+            val mediaNotif = m?.let { mm -> items.firstOrNull { it.media && it.pkg == mm.pkg } }
+            val groups = items.filterNot { m != null && it.media && it.pkg == m.pkg }
+                .groupBy { it.pkg }.toList().sortedByDescending { (_, l) -> l.maxOf { it.postTime } }
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
@@ -152,7 +160,6 @@ fun NotificationFeed(
                     }
                 }
                 item("quick") { QuickStrip(torch, onOpenDeck) }
-                media?.let { m -> item("media") { com.nexus.launcher.ui.home.MediaModule(m) } }
                 if (!connected) {
                     item("grant") {
                         GlassPanel(Modifier.fillMaxWidth(), highlight = true) {
@@ -170,14 +177,21 @@ fun NotificationFeed(
                         }
                     }
                 } else {
-                    if (groups.isEmpty()) item("empty") {
+                    if (m != null) item("media") {
+                        MediaCard(
+                            m, appForPkg(m.pkg),
+                            onOpen = { if (mediaNotif != null) onOpen(mediaNotif) else { onClose(); onOpenApp(m.pkg) } },
+                            modifier = Modifier.animateItem(),
+                        )
+                    }
+                    if (groups.isEmpty() && m == null) item("empty") {
                         Text(if (nx.tech) "ALL CLEAR · NO SIGNALS" else "No notifications", style = nx.label(11f, p.textFaint), modifier = Modifier.padding(20.dp))
                     }
                     items(groups, key = { it.first }) { (pkg, list) ->
                         val open = expanded[pkg] == true
                         GroupCard(
                             app = appForPkg(pkg), label = list.first().appLabel, list = list, open = open,
-                            onToggle = { expanded[pkg] = !open }, onOpen = onOpen,
+                            onToggle = { expanded[pkg] = !open }, onOpen = onOpen, onLeave = onClose,
                             modifier = Modifier.animateItem(),
                         )
                     }
@@ -247,6 +261,7 @@ private fun GroupCard(
     open: Boolean,
     onToggle: () -> Unit,
     onOpen: (NexusNotification) -> Unit,
+    onLeave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val nx = LocalNexus.current
@@ -284,13 +299,13 @@ private fun GroupCard(
                     Icon(if (open) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, if (open) "Collapse" else "Expand", tint = p.textDim, modifier = Modifier.size(18.dp))
                 }
             }
-            shown.forEach { n -> key(n.key) { NotificationRow(n, onOpen) } }
+            shown.forEach { n -> key(n.key) { NotificationRow(n, onOpen, onLeave) } }
         }
     }
 }
 
 @Composable
-private fun NotificationRow(n: NexusNotification, onOpen: (NexusNotification) -> Unit) {
+private fun NotificationRow(n: NexusNotification, onOpen: (NexusNotification) -> Unit, onLeave: () -> Unit) {
     val nx = LocalNexus.current
     val p = nx.palette
     val haptic = rememberHaptics()
@@ -333,11 +348,20 @@ private fun NotificationRow(n: NexusNotification, onOpen: (NexusNotification) ->
                     onTextLayout = { if (it.hasVisualOverflow) canExpand = true },
                     modifier = Modifier.animateContentSize(tween(nx.dur(220))),
                 )
-                if (canExpand || more) Text(
-                    if (more) nx.caps("▴ less") else nx.caps("▾ more"), style = nx.label(8.5f, p.accent),
-                    modifier = Modifier.padding(top = 4.dp).clip(NxShapes.chip).clickable { more = !more }.padding(horizontal = 4.dp, vertical = 2.dp),
-                )
             }
+            // Messaging cards and anything with the app's own actions expand to reply / read / mute.
+            val actionable = n.messaging || n.actions.isNotEmpty()
+            if (canExpand || more || actionable) Text(
+                when {
+                    more -> nx.caps("▴ less")
+                    n.messaging && n.actions.any { it.kind == com.nexus.launcher.notifications.ActionKind.REPLY } -> nx.caps("▾ reply · actions")
+                    actionable -> nx.caps("▾ actions")
+                    else -> nx.caps("▾ more")
+                },
+                style = nx.label(8.5f, p.accent),
+                modifier = Modifier.padding(top = 6.dp).clip(NxShapes.chip).clickable { more = !more }.padding(horizontal = 6.dp, vertical = 4.dp),
+            )
+            if (more && actionable) SignalActions(n, onLeave)
         }
     }
 }

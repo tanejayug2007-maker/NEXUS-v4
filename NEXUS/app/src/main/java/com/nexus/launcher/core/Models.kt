@@ -128,7 +128,11 @@ enum class NexusWidgetKind(val styles: Int, val w: Int, val h: Int) {
 
 @Serializable enum class OrbitRingStyle { TICKS, SOLID, DASHED, NEON, NONE }
 @Serializable enum class OrbitCore { REACTOR, CLOCK, BATTERY, MINIMAL }
+/** Where the radial launcher's slots come from. CUSTOM = slots the user pinned (milestone 7 default). */
 @Serializable enum class RadialSource { PREDICTED, DOCK, CUSTOM }
+
+/** How the Private Space is unlocked. DEVICE = the phone's own biometric / screen lock (BiometricPrompt). */
+@Serializable enum class PrivateLock { PIN, DEVICE }
 
 /** Frame drawn around NEXUS widgets. */
 @Serializable enum class WidgetFrame { GLASS, SOLID, OUTLINE, NEON, PILL, NONE }
@@ -342,8 +346,13 @@ data class NexusConfig(
     // Radial launcher
     val radialSlots: Int = 8,
     val radialRadius: Float = 104f,
-    val radialSource: RadialSource = RadialSource.PREDICTED,
+    val radialSource: RadialSource = RadialSource.CUSTOM,
+    /** Pinned slots in order; "" is an empty slot (see core/RadialSlots). */
     val radialApps: List<String> = emptyList(),
+    /** CUSTOM only: fill empty pinned slots with predicted / recent apps. */
+    val radialFillEmpty: Boolean = false,
+    /** Set once the M7 upgrade froze the radial apps the user was seeing into pinned slots. */
+    val radialPinnedV7: Boolean = false,
     val radialLabels: Boolean = true,
     val radialEditSlot: Boolean = true,
     val predictive: Boolean = true,
@@ -389,6 +398,15 @@ data class NexusConfig(
 
     // Per-app customisation (keys are AppKey.id)
     val hiddenApps: Set<String> = emptySet(),
+    // Private Space (launcher-level; see docs/PRIVATE_SPACE.md)
+    val privateApps: Set<String> = emptySet(),
+    val privateLock: PrivateLock = PrivateLock.PIN,
+    /** "pbkdf2$iterations$salt$hash" (see core/PrivatePin); empty = no PIN set. */
+    val privatePinHash: String = "",
+    /** Show the PRIVATE entry in the drawer; off = open it by searching "private". */
+    val privateEntryVisible: Boolean = true,
+    /** Keep notifications of private apps out of the NEXUS panel and popups. */
+    val privateHideNotifications: Boolean = true,
     val labelOverrides: Map<String, String> = emptyMap(),
     val iconOverrides: Map<String, String> = emptyMap(),
 )

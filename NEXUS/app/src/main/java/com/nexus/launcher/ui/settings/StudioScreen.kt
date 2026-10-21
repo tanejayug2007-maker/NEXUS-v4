@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -103,9 +104,33 @@ import com.nexus.launcher.ui.theme.LocalNexus
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+/** One padded card per settings section: clear grouping and breathing room (milestone 7). */
+private fun androidx.compose.foundation.lazy.LazyListScope.section(key: String, content: @Composable () -> Unit) =
+    item(key) { StudioCard { content() } }
+
+@Composable
+private fun StudioCard(content: @Composable () -> Unit) {
+    val p = LocalNexus.current.palette
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(NxShapes.panel)
+            .background(p.panel.copy(alpha = 0.55f))
+            .border(1.dp, p.border.copy(alpha = 0.7f), NxShapes.panel)
+            .padding(start = 18.dp, end = 18.dp, bottom = 20.dp, top = 2.dp)
+    ) { content() }
+}
+
 private val SECTIONS = listOf(
-    "Experience", "Look", "System", "Interface", "Orbit", "Radial", "Operator", "Glyphs", "Clock", "Drawer", "Calls", "Lock", "Always-on", "Charging", "Widgets", "Themes", "Colors", "Effects", "Type", "Icons", "Layout", "Motion",
+    "Experience", "Look", "System", "Interface", "Orbit", "Radial", "Private", "Operator", "Glyphs", "Clock", "Drawer", "Calls", "Lock", "Always-on", "Charging", "Widgets", "Themes", "Colors", "Effects", "Type", "Icons", "Layout", "Motion",
     "Signals", "Control", "Gestures", "Performance", "Weather", "Backup", "About",
+)
+
+/** LazyColumn keys in the same order as [SECTIONS] (chip highlight + preview follow). */
+private val SECTION_KEYS = listOf(
+    "experience", "look", "system", "interface", "orbit", "radial", "private", "operator", "glyphs", "clock", "drawer", "calls", "lock", "aod",
+    "charging", "widgets", "themes", "colors", "effects", "type", "icons", "layout", "motion", "signals", "control", "gestures", "perf",
+    "weather", "backup", "about",
 )
 
 @Composable
@@ -128,30 +153,39 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                 }
                 NxButton("Home", { host.goHome() })
             }
-            LivePreview(onCharge = { chargePreview = true })
-            LazyRow(contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            // The section nearest the top drives which live preview is shown (and which chip is lit).
+            val topKey by remember {
+                derivedStateOf { list.layoutInfo.visibleItemsInfo.firstOrNull { it.offset + it.size > 160 }?.key as? String }
+            }
+            StudioPreview(cfg, previewTabFor(topKey), onCharge = { chargePreview = true })
+            LazyRow(contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(SECTIONS.size) { i ->
-                    HoloChip(SECTIONS[i], false, { scope.launch { list.animateScrollToItem(i) } })
+                    HoloChip(SECTIONS[i], SECTION_KEYS.getOrNull(i) == topKey, { scope.launch { list.animateScrollToItem(i) } })
                 }
             }
-            LazyColumn(state = list, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 48.dp)) {
-                item("experience") { ExperienceSection(cfg, update) }
-                item("look") { LookSection(cfg, update) }
-                item("system") { SystemSection(host) }
-                item("interface") { InterfaceSection(cfg, update) }
-                item("orbit") { OrbitSection(cfg, update) }
-                item("radial") { RadialSection(cfg, update) }
-                item("operator") { OperatorSection(cfg, update, host) }
-                item("glyphs") { GlyphSection(cfg, update, host) }
-                item("clock") { ClockSection(cfg, update) }
-                item("drawer") { DrawerSection(cfg, update) }
-                item("calls") { CallSection(cfg, update, host) }
-                item("lock") { LockSection(cfg, update, host) }
-                item("aod") { AodSection(cfg, update, host) }
-                item("charging") { ChargingSection(cfg, update) }
-                item("widgets") { WidgetsSection() }
-                item("themes") { ThemesSection(cfg, update) }
-                item("colors") {
+            LazyColumn(
+                state = list,
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 64.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                section("experience") { ExperienceSection(cfg, update) }
+                section("look") { LookSection(cfg, update) }
+                section("system") { SystemSection(host) }
+                section("interface") { InterfaceSection(cfg, update) }
+                section("orbit") { OrbitSection(cfg, update) }
+                section("radial") { RadialSection(cfg, update) }
+                section("private") { PrivateSpaceSection(cfg, update, host) }
+                section("operator") { OperatorSection(cfg, update, host) }
+                section("glyphs") { GlyphSection(cfg, update, host) }
+                section("clock") { ClockSection(cfg, update) }
+                section("drawer") { DrawerSection(cfg, update) }
+                section("calls") { CallSection(cfg, update, host) }
+                section("lock") { LockSection(cfg, update, host) }
+                section("aod") { AodSection(cfg, update, host) }
+                section("charging") { ChargingSection(cfg, update) }
+                section("widgets") { WidgetsSection() }
+                section("themes") { ThemesSection(cfg, update) }
+                section("colors") {
                     Column {
                         SectionHeader("Color editor")
                         ColorEditor("Primary accent", cfg.theme.accent) { c -> theme { it.copy(accent = c) } }
@@ -161,7 +195,7 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         SwitchRow("Gradients", cfg.theme.gradient, { v -> theme { it.copy(gradient = v) } })
                     }
                 }
-                item("effects") {
+                section("effects") {
                     Column {
                         SectionHeader("Effects")
                         SliderRow("Glow intensity", cfg.theme.glow, 0f..1f, { v -> theme { it.copy(glow = v) } })
@@ -175,7 +209,7 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         SliderRow("Particle intensity", cfg.theme.particleIntensity, 0f..1f, { v -> theme { it.copy(particleIntensity = v) } })
                     }
                 }
-                item("type") {
+                section("type") {
                     Column {
                         SectionHeader("Typography")
                         Label("Display & numerals")
@@ -187,8 +221,8 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         SliderRow("Letter spacing", cfg.theme.letterSpacing, 0f..3f, { v -> theme { it.copy(letterSpacing = v) } })
                     }
                 }
-                item("icons") { IconsSection(cfg, update) }
-                item("layout") {
+                section("icons") { IconsSection(cfg, update) }
+                section("layout") {
                     Column {
                         SectionHeader("Layout")
                         SliderRow("Grid columns", cfg.gridCols.toFloat(), 3f..6f, { v -> update { it.copy(gridCols = v.roundToInt()) } }, { "${it.roundToInt()}" }, steps = 2)
@@ -206,8 +240,8 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         NxButton("Reset home layout", { host.resetLayout() })
                     }
                 }
-                item("motion") { MotionSection(cfg, update) }
-                item("signals") {
+                section("motion") { MotionSection(cfg, update) }
+                section("signals") {
                     Column {
                         SectionHeader("Notification feed")
                         SwitchRow("Popup previews", cfg.notifPopups, { v -> update { it.copy(notifPopups = v) } }, "Shown only while NEXUS is on screen")
@@ -217,9 +251,9 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         SliderRow("Card opacity", cfg.notifOpacity, 0.3f..1f, { v -> update { it.copy(notifOpacity = v) } })
                     }
                 }
-                item("control") { ControlSection(cfg, update) }
-                item("gestures") { GesturesSection(cfg, update) }
-                item("perf") {
+                section("control") { ControlSection(cfg, update) }
+                section("gestures") { GesturesSection(cfg, update) }
+                section("perf") {
                     Column {
                         SectionHeader("Performance")
                         EnumChips(PerfMode.entries, cfg.perfMode) { v -> update { it.copy(perfMode = v) } }
@@ -237,7 +271,7 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         SliderRow("Global animation speed", cfg.animSpeed, 0.5f..2f, { v -> update { it.copy(animSpeed = v) } }, { "%.1f×".format(it) })
                     }
                 }
-                item("weather") {
+                section("weather") {
                     Column {
                         SectionHeader("Weather")
                         val ctx = LocalContext.current
@@ -248,18 +282,21 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
                         SwitchRow("Celsius", cfg.weatherCelsius, { v -> update { it.copy(weatherCelsius = v) } })
                     }
                 }
-                item("backup") {
+                section("backup") {
                     Column {
                         SectionHeader("Backup")
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             NxButton("Export", { host.exportBackup() })
                             NxButton("Import", { host.importBackup() })
-                            NxButton("Reset all", { update { NexusConfig() } })
+                            NxButton("Reset all", {
+                                // keeps the Private Space: a reset must never expose private apps or drop their lock
+                                update { NexusConfig(privateApps = it.privateApps, privateLock = it.privateLock, privatePinHash = it.privatePinHash) }
+                            })
                         }
                         Text("Backups contain settings, themes and home layout. Widgets and custom icon images are device-specific and are not transferred.", style = nx.body(11.5f, color = p.textDim), modifier = Modifier.padding(top = 6.dp))
                     }
                 }
-                item("about") { AboutSection() }
+                section("about") { AboutSection() }
             }
         }
 
@@ -273,63 +310,14 @@ fun StudioScreen(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Uni
 @Composable
 internal fun Label(text: String) {
     val nx = LocalNexus.current
-    Text(text.uppercase(), style = nx.label(9.5f, nx.palette.textFaint), modifier = Modifier.padding(top = 10.dp, bottom = 6.dp))
+    Text(text.uppercase(), style = nx.label(9.5f, nx.palette.textFaint), modifier = Modifier.padding(top = 18.dp, bottom = 8.dp))
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun <T : Enum<T>> EnumChips(values: List<T>, selected: T, onSelect: (T) -> Unit) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 6.dp)) {
         values.forEach { v -> HoloChip(v.pretty(), v == selected, { onSelect(v) }) }
-    }
-}
-
-@Composable
-private fun LivePreview(onCharge: () -> Unit) {
-    val nx = LocalNexus.current
-    val p = nx.palette
-    val ctx = LocalContext.current
-    val apps by ctx.nexus.apps.apps.collectAsStateWithLifecycle()
-    val entrance = remember { mutableFloatStateOf(1f) }
-    var unlockTick by remember { mutableLongStateOf(0L) }
-    var fx by remember { mutableStateOf<LaunchFxEvent?>(null) }
-    var center by remember { mutableStateOf(Offset.Zero) }
-    LaunchedEffect(unlockTick) {
-        if (unlockTick > 0) animate(0f, 1f, animationSpec = tween(nx.dur(1100), easing = LinearEasing)) { v, _ -> entrance.floatValue = v }
-    }
-
-    GlassPanel(Modifier.fillMaxWidth().padding(horizontal = 16.dp).height(236.dp), padding = 0.dp, highlight = true) {
-        CompositionLocalProvider(LocalEntrance provides entrance) {
-            Box(Modifier.fillMaxSize().clip(NxShapes.panel)) {
-                NexusBackground(animate = true, modifier = Modifier.fillMaxSize())
-                Column(
-                    Modifier.fillMaxSize().onSizeChanged { center = Offset(it.width / 2f, it.height / 2f) }.padding(16.dp),
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.entrance(0)) {
-                        // the real time, as the home screen would show it
-                        val now by com.nexus.launcher.ui.home.rememberNow(false)
-                        val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
-                        val time = now.format(java.time.format.DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "hh:mm"))
-                        if (nx.matrixClock) DotMatrixText(time, pitch = 4.dp, color = p.text)
-                        else Text(time, style = nx.display(34f, p.text, weight = 300))
-                        Spacer(Modifier.weight(1f))
-                        Text("LIVE PREVIEW", style = nx.label(9f, p.accent))
-                    }
-                    Spacer(Modifier.height(14.dp))
-                    Row(Modifier.fillMaxWidth().entrance(1), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        apps.take(4).forEach { a -> AppIcon(a, a.label, nx.config.iconSize * 0.85f, nx.config.showLabels, badge = if (a == apps.first()) 1 else 0) }
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Row(Modifier.entrance(2), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        NxButton("Launch", { fx = LaunchFxEvent(System.nanoTime(), center, 120f, nx.config.launchAnim) })
-                        NxButton("Unlock", { entrance.floatValue = 0f; unlockTick = System.nanoTime() })
-                        NxButton("Charge", onCharge)
-                    }
-                }
-                EntranceOverlay(entrance)
-                LaunchFxOverlay(fx) { fx = null }
-            }
-        }
     }
 }
 

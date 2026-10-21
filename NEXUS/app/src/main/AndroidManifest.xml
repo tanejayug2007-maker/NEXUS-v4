@@ -46,6 +46,9 @@
 
     <!-- Optional weather module (Open-Meteo, no account) -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- M7 Private Space "phone lock": the system BiometricPrompt (fingerprint / face / screen lock).
+         Normal permission, granted at install; NEXUS never receives the credential. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <queries>

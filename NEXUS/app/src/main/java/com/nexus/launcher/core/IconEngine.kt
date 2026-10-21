@@ -27,6 +27,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.res.ResourcesCompat
 import java.util.concurrent.ConcurrentHashMap
@@ -129,7 +130,9 @@ class IconEngine(private val context: Context) {
         val job = inFlight.computeIfAbsent(k) {
             renderScope.async(start = CoroutineStart.LAZY) {
                 try {
-                    render(app, spec, overrideUri).also { cache.put(k, it) }
+                    // prepareToDraw: starts the GPU texture upload now, on the render thread, so the
+                    // first frame that shows the icon (e.g. the drawer opening) doesn't upload ~30 of them.
+                    render(app, spec, overrideUri).also { runCatching { it.asAndroidBitmap().prepareToDraw() }; cache.put(k, it) }
                 } finally {
                     inFlight.remove(k)
                 }
