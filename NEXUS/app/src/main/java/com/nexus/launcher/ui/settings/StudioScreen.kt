@@ -59,6 +59,9 @@ import com.nexus.launcher.core.BackgroundStyle
 import com.nexus.launcher.core.BodyFont
 import com.nexus.launcher.core.ChargingAnim
 import com.nexus.launcher.core.ControlModules
+import androidx.compose.material.icons.rounded.Wifi
+import androidx.compose.material.icons.rounded.FlashlightOn
+import com.nexus.launcher.core.DeckStyle
 import com.nexus.launcher.core.DisplayFont
 import com.nexus.launcher.core.GestureAction
 import com.nexus.launcher.core.HapticLevel
@@ -510,15 +513,33 @@ private fun MotionSection(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfi
         SliderRow("Duration", cfg.chargingDurationSec.toFloat(), 2f..15f, { v -> update { it.copy(chargingDurationSec = v.roundToInt()) } }, { "${it.roundToInt()} s" })
         SliderRow("Intensity", cfg.chargingIntensity, 0.1f..1f, { v -> update { it.copy(chargingIntensity = v) } })
         SliderRow("Show after unlock within", cfg.chargingWindowSec.toFloat(), 10f..180f, { v -> update { it.copy(chargingWindowSec = v.roundToInt()) } }, { "${it.roundToInt()} s" })
+        SliderRow("Screen saver intro on the charger", cfg.dreamChargeIntroSec.toFloat(), 0f..30f, { v -> update { it.copy(dreamChargeIntroSec = v.roundToInt()) } }, { if (it < 1f) "Off" else "${it.roundToInt()} s" })
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ControlSection(cfg: NexusConfig, update: ((NexusConfig) -> NexusConfig) -> Unit) {
     val nx = LocalNexus.current
     val enabled = cfg.controlModules
     val order = enabled + ControlModules.all.filter { it !in enabled }
     Column {
+        SectionHeader("Control deck style")
+        EnumChips(DeckStyle.entries, cfg.deckStyle) { v -> update { it.copy(deckStyle = v) } }
+        Label("Preview")
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.weight(1f)) {
+                com.nexus.launcher.ui.control.Tile(Icons.Rounded.FlashlightOn, "Flashlight", "ON", active = true, onClick = {}, onLong = {}, style = cfg.deckStyle)
+            }
+            Box(Modifier.weight(1f)) {
+                com.nexus.launcher.ui.control.Tile(Icons.Rounded.Wifi, "Wi-Fi", "OFF", active = false, panel = true, onClick = {}, onLong = {}, style = cfg.deckStyle)
+            }
+        }
+        Label("Columns")
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf(2, 3).forEach { n -> HoloChip("$n", cfg.deckColumns == n, { update { it.copy(deckColumns = n) } }) }
+        }
+        SwitchRow("Clock & battery header", cfg.deckHeader, { v -> update { it.copy(deckHeader = v) } })
         SectionHeader("Control center modules")
         order.forEach { m ->
             val on = m in enabled

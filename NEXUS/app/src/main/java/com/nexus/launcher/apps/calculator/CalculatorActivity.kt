@@ -78,7 +78,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nexus.launcher.ui.components.GlassPanel
 import com.nexus.launcher.ui.components.Haptic
 import com.nexus.launcher.ui.components.HoloChip
+import com.nexus.launcher.ui.components.NexusAppHeader
 import com.nexus.launcher.ui.components.NxShapes
+import com.nexus.launcher.ui.components.nexusAppBackground
 import com.nexus.launcher.ui.components.rememberHaptics
 import com.nexus.launcher.ui.theme.LocalNexus
 import com.nexus.launcher.ui.theme.NexusHost
@@ -121,7 +123,7 @@ fun CalculatorScreen(vm: CalculatorViewModel) {
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .background(p.bg)
+            .nexusAppBackground()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
@@ -165,17 +167,11 @@ fun CalculatorScreen(vm: CalculatorViewModel) {
 
 @Composable
 private fun Header(s: CalcUiState, vm: CalculatorViewModel) {
-    val nx = LocalNexus.current
-    val p = nx.palette
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(if (nx.tech) "// NEXUS CALC" else "Calculator", style = if (nx.tech) nx.label(12f, p.accent) else nx.body(18f, weight = 600))
-        Spacer(Modifier.weight(1f))
+    NexusAppHeader("CALC", "Calculator") {
         HoloChip(s.angle.name, selected = s.angle == AngleMode.RAD, onClick = vm::toggleAngle,
             modifier = Modifier.semantics { contentDescription = "Angle unit ${s.angle.name}, tap to switch" })
-        Spacer(Modifier.width(6.dp))
         HoloChip(if (s.scientific) "SCI" else "STD", selected = s.scientific, onClick = vm::toggleScientific,
             modifier = Modifier.semantics { contentDescription = if (s.scientific) "Scientific keys on" else "Scientific keys off" })
-        Spacer(Modifier.width(6.dp))
         IconKey(Icons.Outlined.History, "History") { vm.showHistory(true) }
     }
 }

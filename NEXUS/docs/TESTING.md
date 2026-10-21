@@ -1,12 +1,19 @@
 # NEXUS test plan
 
-**Status (milestone 2, 2026-10-21):** a clean build (`clean assembleDebug assembleRelease lintDebug`)
-succeeds and all 63 JVM unit tests pass on Windows 11 with JDK 21. **No item below the "Automated" section has been
+**Status (milestone 3, 2026-10-21):** a clean build (`clean assembleDebug assembleRelease lintDebug`)
+succeeds and all 65 JVM unit tests pass on Windows 11 with JDK 21. **No item below the "Automated" section has been
 verified on a device yet** — no phone was attached to the build machine. Tick items off on the
 Nothing Phone (3a) before trusting them.
 
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
+
+## Milestone 3
+- [ ] Studio › Control center: Deck style Glass / Hex / Ring / Minimal changes the preview tiles instantly and the real Control Deck; 2 ↔ 3 columns; header switch hides the clock/battery row. Toggling a tile animates its fill / ring / underline.
+- [ ] Calculator and Settings Hub share the NEXUS header ("CALC // CALCULATOR", "SYS // SETTINGS HUB") and the faint HUD grid + corner brackets in futuristic dark mode; plain background in light mode or plain wording.
+- [ ] Screen saver (Settings › Display › Screen saver › NEXUS Ambient, "While charging"): on the charger the charging animation plays for the set time, then crossfades to the ambient face. Studio › Charging › "Screen saver intro" = Off skips it. Battery Saver on → no intro.
+- [ ] Battery: with NEXUS as Home, open another app for 10 min, then `adb shell dumpsys batterystats com.nexus.launcher` → NEXUS should show ~no CPU/wakeups while in the background (clock/HUD/widget refresh loops now pause when Home is not visible). Return Home → clocks and HUD values are current immediately.
+- [ ] Upgrade from the milestone 2 APK (install over it): your theme, layout and deck modules are kept; new deck options start at Glass / 2 columns / header on.
 
 ## NEXUS Settings Hub (milestone 2)
 - [ ] "NEXUS Settings Hub" icon opens the hub in its own task. Core ring shows the real battery % (compare with the status bar); charging label appears when plugged in.

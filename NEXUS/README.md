@@ -4,10 +4,24 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
-> **Status (milestone 2, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 63 unit
+> **Status (milestone 3, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 65 unit
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 3 — Control Deck styles, shared app chrome, charging screen saver, battery
+
+* **Control Deck customisation** (Studio › Control center): 4 tile styles — Glass, Hex, Ring (energy
+  ring fills as the tile turns on), Minimal (charging underline) — with live preview; 2 or 3 columns;
+  clock/battery header on/off. Still a NEXUS panel inside the launcher, not the system Quick Settings.
+* **One look across NEXUS apps**: shared header and static HUD backdrop (grid, corner brackets, accent
+  glow) used by Calculator and Settings Hub; follows theme, light/dark and wording settings.
+* **Charging on the screen saver**: NEXUS Ambient plays your charging animation for a few seconds when it
+  starts on the charger, then settles into the low-power ambient face (Studio › Charging).
+* **Battery**: clock, HUD, system-stats, world-clock, date and calendar refresh loops now pause whenever
+  their screen isn't visible (they used to keep running while NEXUS sat in the background as Home).
+* Reference screenshots: put them in [`docs/reference/`](docs/reference/README.md) — they have not been
+  received yet, so Orbit/Radial/Core/drawer were **not** redesigned in this milestone.
 
 ## Milestone 2 — Settings Hub, Quick Settings tiles, Control Deck
 

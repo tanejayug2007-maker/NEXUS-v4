@@ -1,5 +1,6 @@
 package com.nexus.launcher.ui.home
 
+import com.nexus.launcher.ui.components.produceWhileVisible
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -77,7 +78,7 @@ import kotlin.math.roundToInt
 
 /** Ticks once per minute (or second), aligned to the wall clock. */
 @Composable
-fun rememberNow(seconds: Boolean): State<LocalDateTime> = produceState(LocalDateTime.now(), seconds) {
+fun rememberNow(seconds: Boolean): State<LocalDateTime> = produceWhileVisible(LocalDateTime.now(), seconds) {
     while (true) {
         value = LocalDateTime.now()
         val step = if (seconds) 1000L else 60_000L

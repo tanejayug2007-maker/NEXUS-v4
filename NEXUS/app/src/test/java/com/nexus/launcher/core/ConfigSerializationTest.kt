@@ -25,6 +25,21 @@ class ConfigSerializationTest {
         assertEquals(LaunchAnim.HYPERSPACE_JUMP, cfg.launchAnim)
     }
 
+    @Test fun milestone2ConfigUpgradesWithDeckDefaults() {
+        // A config saved before milestone 3 has no deck / charging-intro fields.
+        val cfg = NexusJson.decodeFromString(NexusConfig.serializer(), """{"controlModules":["FLASHLIGHT"],"chargingAnim":"LIQUID_FILL"}""")
+        assertEquals(listOf(ControlModules.FLASHLIGHT), cfg.controlModules)
+        assertEquals(DeckStyle.GLASS, cfg.deckStyle)
+        assertEquals(2, cfg.deckColumns)
+        assertEquals(true, cfg.deckHeader)
+        assertEquals(10, cfg.dreamChargeIntroSec)
+    }
+
+    @Test fun deckSettingsRoundTrip() {
+        val cfg = NexusConfig(deckStyle = DeckStyle.HEX, deckColumns = 3, deckHeader = false, dreamChargeIntroSec = 0)
+        assertEquals(cfg, NexusJson.decodeFromString(NexusConfig.serializer(), NexusJson.encodeToString(NexusConfig.serializer(), cfg)))
+    }
+
     @Test fun surfaceStylesRoundTrip() {
         val cfg = NexusConfig(
             clockStyle = ClockStyle.BINARY, drawerStyle = DrawerStyle.HONEYCOMB, callStyle = CallStyle.GLITCH,

@@ -1,6 +1,21 @@
 package com.nexus.launcher.lock
 
 import android.service.dreams.DreamService
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import com.nexus.launcher.ui.fx.ChargingVisual
+import com.nexus.launcher.ui.theme.LocalNexus
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
@@ -49,8 +64,27 @@ class NexusDreamService : DreamService(), LifecycleOwner, SavedStateRegistryOwne
                 NexusHost { cfg ->
                     val battery by applicationContext.nexus.system.battery.collectAsState()
                     val notes by NotificationHub.items.collectAsState()
-                    SurfaceAccent(cfg.aodAccent) {
-                        AmbientFace(cfg.aodStyle, cfg.aodClockStyle, battery, notes, cfg.aodNotifications, cfg.aodDim)
+                    val quality = LocalNexus.current.quality
+                    // Charging intro: the NEXUS charging animation for a few seconds, then the
+                    // low-power ambient face. Skipped in Battery Saver / reduced motion.
+                    var intro by remember {
+                        mutableStateOf(cfg.dreamChargeIntroSec > 0 && battery.charging && quality.tier > 0)
+                    }
+                    LaunchedEffect(intro) {
+                        if (intro) { delay(cfg.dreamChargeIntroSec.coerceIn(3, 30) * 1000L); intro = false }
+                    }
+                    Crossfade(intro, animationSpec = tween(900), label = "dreamIntro") { showIntro ->
+                        if (showIntro) {
+                            SurfaceAccent(cfg.chargeAccent) {
+                                Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                                    ChargingVisual(battery, cfg.chargingAnim, cfg.chargingIntensity, Modifier.fillMaxSize())
+                                }
+                            }
+                        } else {
+                            SurfaceAccent(cfg.aodAccent) {
+                                AmbientFace(cfg.aodStyle, cfg.aodClockStyle, battery, notes, cfg.aodNotifications, cfg.aodDim)
+                            }
+                        }
                     }
                 }
             }

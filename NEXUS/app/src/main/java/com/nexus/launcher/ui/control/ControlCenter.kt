@@ -86,6 +86,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nexus.launcher.core.BatteryState
+import com.nexus.launcher.core.DeckStyle
 import com.nexus.launcher.core.ControlModules
 import com.nexus.launcher.core.NetState
 import com.nexus.launcher.core.NetType
@@ -176,13 +177,13 @@ private fun ControlContent(
             .windowInsetsPadding(WindowInsets.safeDrawing)
     ) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Fixed(nx.config.deckColumns.coerceIn(2, 3)),
             contentPadding = PaddingValues(16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { },
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }, key = "hero") {
+            if (nx.config.deckHeader) item(span = { GridItemSpan(maxLineSpan) }, key = "hero") {
                 Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(nx.tag(if (nx.tech) "Control deck" else "Quick controls"), style = nx.label(10f, p.accent))
@@ -288,9 +289,13 @@ private fun ControlContent(
     }
 }
 
+/**
+ * One Control Deck tile in the user's [DeckStyle]. On/off "energy" and press feedback are animated
+ * floats read only in draw/graphicsLayer lambdas, so state changes never recompose the grid.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Tile(
+internal fun Tile(
     icon: ImageVector,
     title: String,
     state: String,
@@ -298,41 +303,90 @@ private fun Tile(
     panel: Boolean = false,
     onClick: () -> Unit,
     onLong: () -> Unit,
+    style: DeckStyle = LocalNexus.current.config.deckStyle,
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
-    // Energise on/off: the accent fill and ring fade between states instead of snapping, and a
-    // press briefly "charges" the tile. Driven by draw-phase reads only (no extra recomposition).
     val energy by animateFloatAsState(if (active) 1f else 0f, tween(nx.dur(320)), label = "tileEnergy")
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) 1f else 0f, tween(if (pressed) nx.dur(70) else nx.dur(240)), label = "tilePress")
     val iconTint = androidx.compose.ui.graphics.lerp(p.textDim, p.accent, energy)
-    Column(
+    val shape = when (style) {
+        DeckStyle.HEX -> androidx.compose.foundation.shape.CutCornerShape(30)
+        DeckStyle.MINIMAL -> androidx.compose.foundation.shape.RoundedCornerShape(4.dp)
+        else -> NxShapes.tile
+    }
+    val marker: @Composable () -> Unit = {
+        Text(if (panel) "◇" else "◆", style = nx.label(10f, if (panel) p.textFaint else p.accent.copy(alpha = 0.7f)))
+    }
+    Box(
         Modifier
             .fillMaxWidth()
-            .height(84.dp)
-            .graphicsLayer { val s = 1f - 0.04f * press; scaleX = s; scaleY = s }
-            .clip(NxShapes.tile)
-            .background(Brush.linearGradient(listOf(p.panelTop, p.panel)))
+            .height(if (style == DeckStyle.RING) 104.dp else 84.dp)
+            .graphicsLayer { val sc = 1f - 0.04f * press; scaleX = sc; scaleY = sc }
+            .clip(shape)
+            .then(
+                if (style == DeckStyle.MINIMAL) Modifier
+                else Modifier.background(Brush.linearGradient(listOf(p.panelTop, p.panel)))
+            )
             .drawBehind {
-                if (energy > 0.01f) drawRect(Brush.linearGradient(listOf(p.accent.copy(alpha = 0.30f * energy), p.accent.copy(alpha = 0.10f * energy))))
+                when (style) {
+                    DeckStyle.MINIMAL -> {
+                        // underline that charges from the left as the tile turns on
+                        val y = size.height - 2.dp.toPx()
+                        drawLine(p.border, Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
+                        if (energy > 0.01f) drawLine(p.accent, Offset(0f, y), Offset(size.width * energy, y), 2.dp.toPx())
+                    }
+                    else -> if (energy > 0.01f) {
+                        drawRect(Brush.linearGradient(listOf(p.accent.copy(alpha = 0.30f * energy), p.accent.copy(alpha = 0.10f * energy))))
+                    }
+                }
                 if (press > 0.01f) drawRect(p.accent, alpha = 0.16f * press)
             }
-            .border(1.dp, androidx.compose.ui.graphics.lerp(p.border, p.accent.copy(alpha = 0.8f), energy), NxShapes.tile)
+            .then(
+                if (style == DeckStyle.MINIMAL) Modifier
+                else Modifier.border(1.dp, androidx.compose.ui.graphics.lerp(p.border, p.accent.copy(alpha = 0.8f), energy), shape)
+            )
             .combinedClickable(interactionSource = source, indication = null, onClick = onClick, onLongClick = onLong)
-            .semantics { contentDescription = title; stateDescription = state }
-            .padding(12.dp),
-        verticalArrangement = Arrangement.SpaceBetween,
+            .semantics { contentDescription = title; stateDescription = state },
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.weight(1f))
-            Text(if (panel) "◇" else "◆", style = nx.label(10f, if (panel) p.textFaint else p.accent.copy(alpha = 0.7f)))
-        }
-        Column {
-            Text(title, style = nx.body(13.5f), maxLines = 1)
-            Text(state, style = nx.label(9f, if (active) p.accent else p.textFaint))
+        when (style) {
+            DeckStyle.RING, DeckStyle.HEX -> Column(
+                Modifier.fillMaxSize().padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                if (style == DeckStyle.HEX) {
+                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
+                } else Box(
+                    Modifier.size(44.dp).drawBehind {
+                        val sw = 2.5.dp.toPx()
+                        drawCircle(p.border, size.minDimension / 2 - sw, style = Stroke(sw))
+                        if (energy > 0.01f) drawArc(p.accent, -90f, 360f * energy, false,
+                            topLeft = Offset(sw, sw), size = androidx.compose.ui.geometry.Size(size.width - 2 * sw, size.height - 2 * sw),
+                            style = Stroke(sw, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                    },
+                    contentAlignment = Alignment.Center,
+                ) { Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp)) }
+                Spacer(Modifier.height(if (style == DeckStyle.HEX) 4.dp else 6.dp))
+                Text(title, style = nx.body(12f), maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(state, style = nx.label(8.5f, if (active) p.accent else p.textFaint), maxLines = 1)
+            }
+            else -> Column(
+                Modifier.fillMaxSize().padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.weight(1f))
+                    marker()
+                }
+                Column {
+                    Text(title, style = nx.body(13.5f), maxLines = 1)
+                    Text(state, style = nx.label(9f, if (active) p.accent else p.textFaint), maxLines = 1)
+                }
+            }
         }
     }
 }

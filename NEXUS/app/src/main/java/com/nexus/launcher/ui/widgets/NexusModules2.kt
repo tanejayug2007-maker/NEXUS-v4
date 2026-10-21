@@ -1,5 +1,6 @@
 package com.nexus.launcher.ui.widgets
 
+import com.nexus.launcher.ui.components.produceWhileVisible
 import android.Manifest
 import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
@@ -170,7 +171,7 @@ internal fun BoxScope.WorldClockModule(style: Int, data: String) {
         data.ifBlank { "Europe/London, America/New_York, Asia/Tokyo" }.split(',')
             .mapNotNull { runCatching { ZoneId.of(it.trim()) }.getOrNull() }.take(4)
     }
-    val now by produceState(Instant.now()) { while (true) { value = Instant.now(); delay(30_000) } }
+    val now by produceWhileVisible(Instant.now()) { while (true) { value = Instant.now(); delay(30_000) } }
     fun city(z: ZoneId) = z.id.substringAfterLast('/').replace('_', ' ')
     fun time(z: ZoneId) = now.atZone(z).format(DateTimeFormatter.ofPattern("HH:mm"))
     if (zones.isEmpty()) { Text("Long-press › Edit cities", style = nx.body(12f, color = p.textDim), modifier = Modifier.align(Alignment.Center)); return }
@@ -216,7 +217,7 @@ internal fun BoxScope.CalendarModule(style: Int) {
         Text(nx.caps("Tap to show your calendar"), style = nx.body(13f, color = p.textDim), modifier = Modifier.align(Alignment.Center))
         return
     }
-    val events by produceState(emptyList<Event>()) {
+    val events by produceWhileVisible(emptyList<Event>()) {
         while (true) {
             value = withContext(Dispatchers.IO) { queryEvents(ctx) }
             delay(5 * 60_000L)
@@ -321,7 +322,7 @@ internal fun BoxScope.FavoritesModule(style: Int) {
 internal fun BoxScope.DateModule(style: Int) {
     val nx = LocalNexus.current
     val p = nx.palette
-    val d by produceState(LocalDate.now()) { while (true) { value = LocalDate.now(); delay(60_000) } }
+    val d by produceWhileVisible(LocalDate.now()) { while (true) { value = LocalDate.now(); delay(60_000) } }
     val loc = Locale.getDefault()
     when (style) {
         0 -> Row(Modifier.align(Alignment.CenterStart), verticalAlignment = Alignment.CenterVertically) {

@@ -194,6 +194,9 @@ data class ThemeSpec(
 @Serializable
 data class NamedTheme(val name: String, val spec: ThemeSpec)
 
+/** Control Deck tile looks: glass card, hexagon cell, energy ring, minimal line. */
+@Serializable enum class DeckStyle { GLASS, HEX, RING, MINIMAL }
+
 object ControlModules {
     const val DIALS = "DIALS"
     const val BATTERY = "BATTERY"
@@ -275,6 +278,10 @@ data class NexusConfig(
 
     // Control center
     val controlModules: List<String> = ControlModules.defaultOrder,
+    /** Control Deck tile look, grid columns (2–3) and the clock/battery hero row. */
+    val deckStyle: DeckStyle = DeckStyle.GLASS,
+    val deckColumns: Int = 2,
+    val deckHeader: Boolean = true,
 
     // Gestures & feel
     val swipeUp: GestureAction = GestureAction.APP_DRAWER,
@@ -355,6 +362,8 @@ data class NexusConfig(
     val aodDim: Float = 0.35f,
     val aodNotifications: Boolean = true,
     val aodAccent: Long? = null,
+    /** Screen saver on the charger: play the charging animation for this many seconds first (0 = off). */
+    val dreamChargeIntroSec: Int = 10,
 
     // Charging colour
     val chargeAccent: Long? = null,

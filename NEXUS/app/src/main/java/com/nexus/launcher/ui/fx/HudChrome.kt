@@ -1,5 +1,6 @@
 package com.nexus.launcher.ui.fx
 
+import com.nexus.launcher.ui.components.WhileVisibleEffect
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
@@ -53,7 +54,7 @@ fun HudChrome(
     val small = TextStyle(fontFamily = FontFamily.Monospace, fontSize = 8.sp, color = p.accent.copy(alpha = 0.75f), letterSpacing = 1.5.sp)
 
     var mem by remember { mutableStateOf(0) }
-    LaunchedEffect(Unit) {
+    WhileVisibleEffect {
         val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val info = ActivityManager.MemoryInfo()
         while (true) {

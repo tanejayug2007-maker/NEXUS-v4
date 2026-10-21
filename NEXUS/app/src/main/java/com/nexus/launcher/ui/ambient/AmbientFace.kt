@@ -1,5 +1,6 @@
 package com.nexus.launcher.ui.ambient
 
+import com.nexus.launcher.ui.components.produceWhileVisible
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,7 +47,7 @@ import kotlin.random.Random
 /** Moves content a few dp every minute so OLED pixels are never lit in one place for long. */
 @Composable
 fun rememberBurnInShift(): IntOffset {
-    val shift by produceState(IntOffset.Zero) {
+    val shift by produceWhileVisible(IntOffset.Zero) {
         val r = Random(System.currentTimeMillis())
         while (true) {
             delay(60_000)
@@ -145,7 +146,7 @@ fun AmbientFace(
 private fun GlyphMatrix(battery: BatteryState, k: Float) {
     val nx = LocalNexus.current
     val p = nx.palette
-    val now by produceState(LocalTime.now()) { while (true) { value = LocalTime.now(); delay(30_000) } }
+    val now by produceWhileVisible(LocalTime.now()) { while (true) { value = LocalTime.now(); delay(30_000) } }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Canvas(Modifier.size(230.dp)) {
             val n = 25
@@ -176,7 +177,7 @@ private fun GlyphMatrix(battery: BatteryState, k: Float) {
 private fun DataMinimal(battery: BatteryState, k: Float) {
     val nx = LocalNexus.current
     val p = nx.palette
-    val now by produceState(LocalTime.now()) { while (true) { value = LocalTime.now(); delay(30_000) } }
+    val now by produceWhileVisible(LocalTime.now()) { while (true) { value = LocalTime.now(); delay(30_000) } }
     Column(Modifier.fillMaxWidth()) {
         Text("%02d".format(now.hour), style = nx.display(64f, p.text.copy(alpha = k), weight = 100))
         Text("%02d".format(now.minute), style = nx.display(64f, p.accent.copy(alpha = k), weight = 100))

@@ -281,3 +281,34 @@ packaged manifest checked with `aapt2` (3 launcher icons, 5 QS tiles).
   did not guess at redesigns. Put them in `docs/reference/` and they become the spec for milestone 3.
 - **App-opening animation tuning** needs on-device frame measurements first (Nothing OS may override the
   window animation); see the Performance section of `docs/TESTING.md`.
+
+---
+
+## 11. Milestone 3 — what changed (2026-10-21)
+
+| Feature | Category | What it really does |
+|---|---|---|
+| Control Deck styles (Glass/Hex/Ring/Minimal), columns, header | **Simulated panel** with real controls | Customises NEXUS's own deck. The real Quick Settings panel is unchanged (its tiles remain Tier 3/4 to restyle). |
+| Shared NEXUS app chrome | **Functional** (NEXUS apps only) | Calculator and Settings Hub use one header + static HUD backdrop. Does not affect other apps or system screens. |
+| Screen-saver charging intro | **Functional** (Tier 2, user-enabled screen saver) | Runs only inside Android's screen saver while charging. Does **not** replace the system charging animation, lock screen or AOD (Tier 4). |
+| Visibility-gated refresh loops | Performance fix | `produceWhileVisible` / `WhileVisibleEffect` (`ui/components/VisibleWork.kt`) stop delay()-based loops when the host is stopped. Applied to `rememberNow`, HUD memory readout, system-stats, world clock, date and calendar widgets, ambient faces and burn-in shift. |
+
+### Files
+`core/Models.kt` (DeckStyle, deckStyle/deckColumns/deckHeader, dreamChargeIntroSec), `ui/control/ControlCenter.kt`
+(styled `Tile`, columns, header), `ui/settings/StudioScreen.kt` (deck style + preview, columns, header,
+screen-saver intro), `ui/components/AppChrome.kt` (**new**), `ui/components/VisibleWork.kt` (**new**),
+`apps/calculator/CalculatorActivity.kt` and `apps/settingshub/SettingsHubActivity.kt` (shared chrome),
+`lock/NexusDreamService.kt` (charging intro), `ui/home/Dashboard.kt`, `ui/fx/HudChrome.kt`,
+`ui/widgets/NexusModules.kt`, `ui/widgets/NexusModules2.kt`, `ui/ambient/AmbientFace.kt` (gated loops),
+`ConfigSerializationTest.kt` (+2 tests: upgrade from M2 config, deck round-trip), `docs/reference/README.md`,
+version 1.2.0-m3 (code 3).
+
+**Verified here:** clean debug + release build, lint (no new errors), 65/65 unit tests. **Not verified on the phone.**
+
+### Not done in milestone 3 — and why
+- **Orbit Home / Radial / Core / drawer / lock-screen visuals "to match the screenshots"**: the screenshots did
+  not arrive (no image attachments; nothing in `docs/reference/`). Redesigning without them would be guessing.
+- **System UI research**: no new on-device data — the read-only probe (`research/systemui-probe`) has not been
+  run yet. Its report is what decides the next research step; nothing new can be learned from the PC side.
+- **Lock screen**: the real keyguard remains Tier 4. The optional NEXUS lock layer (a simulation in front of
+  the keyguard) is unchanged and stays off by default.

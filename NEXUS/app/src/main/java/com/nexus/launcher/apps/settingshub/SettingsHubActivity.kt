@@ -98,7 +98,10 @@ import com.nexus.launcher.system.SystemControls
 import com.nexus.launcher.system.TorchController
 import com.nexus.launcher.ui.components.GlassPanel
 import com.nexus.launcher.ui.components.Haptic
+import com.nexus.launcher.ui.components.HudRule
+import com.nexus.launcher.ui.components.NexusAppHeader
 import com.nexus.launcher.ui.components.NxShapes
+import com.nexus.launcher.ui.components.nexusAppBackground
 import com.nexus.launcher.ui.components.rememberHaptics
 import com.nexus.launcher.ui.theme.LocalNexus
 import com.nexus.launcher.ui.theme.NexusHost
@@ -330,15 +333,14 @@ private fun HubScreen(
     }
 
     LazyColumn(
-        Modifier.fillMaxSize().background(p.bg).windowInsetsPadding(WindowInsets.safeDrawing),
+        Modifier.fillMaxSize().nexusAppBackground().windowInsetsPadding(WindowInsets.safeDrawing),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item(key = "header") {
             Column {
-                Text(if (nx.tech) "// NEXUS SETTINGS" else "Settings Hub", style = if (nx.tech) nx.label(12f, p.accent) else nx.body(22f, weight = 600))
-                Spacer(Modifier.height(2.dp))
-                Text("Real Android settings · NEXUS interface", style = nx.body(12f, color = p.textDim))
+                NexusAppHeader("SYS", "Settings Hub", subtitle = "Real Android settings · NEXUS interface")
+                HudRule(Modifier.padding(top = 8.dp))
             }
         }
         item(key = "core") { CoreHud(live, battery, refreshTick) }

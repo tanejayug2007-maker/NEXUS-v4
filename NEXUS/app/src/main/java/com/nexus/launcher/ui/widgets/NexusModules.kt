@@ -1,5 +1,6 @@
 package com.nexus.launcher.ui.widgets
 
+import com.nexus.launcher.ui.components.produceWhileVisible
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Environment
@@ -83,7 +84,7 @@ private data class SysStats(val memPct: Int, val storagePct: Int, val memUsedGb:
 @Composable
 private fun rememberSysStats(): SysStats {
     val ctx = LocalContext.current
-    val s by produceState(SysStats(0, 0, 0f, 0f)) {
+    val s by produceWhileVisible(SysStats(0, 0, 0f, 0f)) {
         val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val mi = ActivityManager.MemoryInfo()
         while (true) {
