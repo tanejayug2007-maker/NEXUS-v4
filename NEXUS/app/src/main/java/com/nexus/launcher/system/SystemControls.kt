@@ -153,6 +153,29 @@ object SystemControls {
     fun locationEnabled(context: Context): Boolean =
         runCatching { context.getSystemService(LocationManager::class.java).isLocationEnabled }.getOrDefault(false)
 
+    fun airplaneOn(context: Context): Boolean =
+        runCatching { Settings.Global.getInt(context.contentResolver, Settings.Global.AIRPLANE_MODE_ON) == 1 }.getOrDefault(false)
+
+    fun powerSaveOn(context: Context): Boolean =
+        runCatching { context.getSystemService(android.os.PowerManager::class.java).isPowerSaveMode }.getOrDefault(false)
+
+    /** System dark theme currently in effect (whatever turned it on: manual, schedule or battery saver). */
+    fun darkModeOn(context: Context): Boolean =
+        (context.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+
+    // Third-party apps can't toggle these on Android 10+: open the official screen instead.
+    fun openAirplane(context: Context) { start(context, Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)) }
+    fun openBatterySaver(context: Context) {
+        if (!start(context, Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS))) openBattery(context)
+    }
+    fun openHotspot(context: Context) {
+        if (!start(context, Intent("android.settings.TETHER_SETTINGS"))) start(context, Intent(Settings.ACTION_WIRELESS_SETTINGS))
+    }
+    fun openDarkMode(context: Context) {
+        if (!start(context, Intent("android.settings.DARK_THEME_SETTINGS"))) openDisplay(context)
+    }
+
     // ---- real toggles -----------------------------------------------------------------------
 
     fun dndOn(context: Context): Boolean =

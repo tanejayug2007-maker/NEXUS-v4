@@ -22,3 +22,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "NEXUS"
 include(":app")
+// Layer B proof of concept: NEXUS artwork as plain Drawables a SystemUI hook could install. Not a system modification.
+include(":sysui-style")

@@ -359,8 +359,79 @@ private fun SystemSection(host: StudioHost) {
         PermRow("Modify system settings", "Brightness dial and auto-rotate toggle", write) { host.openWriteSettings() }
         PermRow("Do Not Disturb access", "Real DND toggle in the control center", dnd) { host.openDndAccess() }
         SystemColorsPanel(tick)
+        SystemUiRendererPanel()
         CameraProbePanel()
     }
+}
+
+/**
+ * Layer B proof of concept: the Control Deck artwork as plain Android Drawables (module :sysui-style),
+ * hosted here in classic Views exactly as Nothing OS's View-based SystemUI would host them. Tapping a tile
+ * calls setQsState() — the call a privileged hook on QSTileViewImpl.handleStateChanged would make.
+ * Runs only inside NEXUS; nothing is injected into SystemUI.
+ */
+@Composable
+private fun SystemUiRendererPanel() {
+    val nx = LocalNexus.current
+    val p = nx.palette
+    val colors = com.nexus.sysui.DeckColors(
+        accent = p.accent.toArgb(), accent2 = p.accent2.toArgb(), panel = p.panel.toArgb(),
+        panelTop = p.panelTop.toArgb(), border = p.border.toArgb(), text = p.text.toArgb(),
+    )
+    val animate = nx.quality.tier > 0
+    SectionHeader("SystemUI renderer · proof of concept")
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "The deck look as plain Android Views/Drawables — the form Nothing OS's SystemUI tiles and notification rows " +
+                    "use. Shown here inside NEXUS only. Putting it into the real shade needs a privileged hook (root) or " +
+                    "Nothing's signing key — see docs/SYSTEMUI_HOOK_MAP.md. Tap a tile to change its QS state.",
+                style = nx.body(12f, color = p.textDim),
+            )
+            androidx.compose.ui.viewinterop.AndroidView(
+                modifier = Modifier.fillMaxWidth(),
+                factory = { c -> buildRendererDemo(c, colors, animate) },
+            )
+        }
+    }
+}
+
+private fun buildRendererDemo(c: android.content.Context, colors: com.nexus.sysui.DeckColors, animate: Boolean): android.view.View {
+    val d = c.resources.displayMetrics.density
+    fun dp(v: Int) = (v * d).toInt()
+    val root = android.widget.LinearLayout(c).apply { orientation = android.widget.LinearLayout.VERTICAL }
+    val row = android.widget.LinearLayout(c).apply { orientation = android.widget.LinearLayout.HORIZONTAL }
+    val names = listOf("Wi-Fi" to com.nexus.sysui.DeckGeometry.STATE_ACTIVE, "Flashlight" to com.nexus.sysui.DeckGeometry.STATE_INACTIVE, "NFC" to com.nexus.sysui.DeckGeometry.STATE_UNAVAILABLE)
+    names.forEachIndexed { i, (name, st) ->
+        val bg = com.nexus.sysui.NexusTileDrawable(d, colors, animate)
+        bg.setQsState(st)
+        val label = android.widget.TextView(c).apply {
+            background = bg
+            setPadding(dp(12), dp(14), dp(12), dp(14))
+            setTextColor(colors.text)
+            textSize = 13f
+            fun refresh() { text = name + "\n" + when (bg.qsState()) { 2 -> "ON"; 1 -> "OFF"; else -> "UNAVAILABLE" } }
+            refresh()
+            setOnClickListener {
+                bg.setQsState(when (bg.qsState()) { 2 -> 1; 1 -> 2; else -> 1 })
+                refresh()
+            }
+            contentDescription = "$name renderer demo tile"
+        }
+        row.addView(label, android.widget.LinearLayout.LayoutParams(0, dp(72), 1f).apply { if (i > 0) marginStart = dp(8) })
+    }
+    root.addView(row)
+    val card = com.nexus.sysui.NexusCardDrawable(d, colors, animate)
+    val cardView = android.widget.TextView(c).apply {
+        background = card
+        setPadding(dp(16), dp(14), dp(16), dp(14))
+        setTextColor(colors.text)
+        textSize = 13f
+        text = "Notification card renderer\nTap to replay the arrival pulse"
+        setOnClickListener { card.arrive() }
+    }
+    root.addView(cardView, android.widget.LinearLayout.LayoutParams(android.widget.LinearLayout.LayoutParams.MATCH_PARENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(10) })
+    return root
 }
 
 /**
@@ -634,7 +705,7 @@ private fun ControlSection(cfg: NexusConfig, update: ((NexusConfig) -> NexusConf
         order.forEach { m ->
             val on = m in enabled
             Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(m.lowercase().replaceFirstChar { it.uppercase() }, style = nx.body(14f, color = if (on) nx.palette.text else nx.palette.textFaint), modifier = Modifier.weight(1f))
+                Text(ControlModules.pretty(m), style = nx.body(14f, color = if (on) nx.palette.text else nx.palette.textFaint), modifier = Modifier.weight(1f))
                 if (on) {
                     IconButton(onClick = { update { c -> c.copy(controlModules = move(c.controlModules, m, -1)) } }) { Icon(Icons.Rounded.KeyboardArrowUp, "Up", tint = nx.palette.textDim) }
                     IconButton(onClick = { update { c -> c.copy(controlModules = move(c.controlModules, m, 1)) } }) { Icon(Icons.Rounded.KeyboardArrowDown, "Down", tint = nx.palette.textDim) }

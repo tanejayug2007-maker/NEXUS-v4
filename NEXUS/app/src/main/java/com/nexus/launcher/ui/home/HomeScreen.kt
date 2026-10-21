@@ -516,6 +516,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                 onGrantAccess = { actions.openNotificationAccess() },
                 onSystemShade = { vm.close(); actions.systemGesture(GestureAction.SYSTEM_SHADE) },
                 onClose = { vm.close() },
+                battery = battery, torch = actions.torch,
+                onOpenDeck = { vm.open(Overlay.Control) },
             )
 
             ControlCenter(
@@ -557,7 +559,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                 ItemMenu(target = m.target, anchor = m.anchor, layout = l, apps = byKey, vm = vm, actions = actions, labelOf = labelOf)
             }
 
-            NotificationPopup(popup, appForPkg, onOpen = { n -> vm.dismissPopup(); actions.openNotification(n) }, onDismiss = { vm.dismissPopup() })
+            // Heads-up previews stay out of the way while the notification panel or the deck is open.
+            NotificationPopup(popup.takeIf { overlay != Overlay.Notifications && overlay != Overlay.Control }, appForPkg, onOpen = { n -> vm.dismissPopup(); actions.openNotification(n) }, onDismiss = { vm.dismissPopup() })
 
             LaunchFxOverlay(launchFx) { vm.clearLaunchFx() }
 

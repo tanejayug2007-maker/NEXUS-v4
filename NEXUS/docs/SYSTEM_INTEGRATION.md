@@ -5,6 +5,10 @@ Builds on the earlier research in `Downloads\NEXUS-OS-stock-feasibility\NEXUS-OS
 approaches 1–3, protections quoted from Android source). This page adds new evidence from milestone 5 and the
 per-feature answer you asked for. **Nothing here was run on your phone.**
 
+> **Milestone 6 decision:** you don't want stock Android Quick Settings with a cyan colour filter. The System colours
+> option stays available but off; the target is the NEXUS Control Deck look, mapped to SystemUI in
+> [`SYSTEMUI_HOOK_MAP.md`](SYSTEMUI_HOOK_MAP.md).
+
 ## Correction to `09-STOCK-BASED-FEASIBILITY.md`
 `09` concluded *"No adb-only or Shizuku-only system theming. Root is needed."* That is true for **creating** overlays
 (`"Non-root shell cannot fabricate overlays"`), but there is a second route it missed: the Secure setting

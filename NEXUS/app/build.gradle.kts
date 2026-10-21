@@ -13,8 +13,8 @@ android {
         applicationId = "com.nexus.launcher"
         minSdk = 29          // Android 10+. Every Nothing Phone ships Android 12 or newer.
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.4.0-m5"
+        versionCode = 6
+        versionName = "1.5.0-m6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -68,6 +68,7 @@ composeCompiler {
 }
 
 dependencies {
+    implementation(project(":sysui-style"))
     // Installs app/src/main/baseline-prof.txt at install time → ahead-of-time compiled hot paths, faster start & scrolling.
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.core.ktx)

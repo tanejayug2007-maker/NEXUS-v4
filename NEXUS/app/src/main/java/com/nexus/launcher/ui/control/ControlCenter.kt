@@ -1,5 +1,20 @@
 package com.nexus.launcher.ui.control
 
+import kotlin.math.roundToInt
+import androidx.compose.material.icons.rounded.Hub
+import androidx.compose.material.icons.rounded.Calculate
+import androidx.compose.material.icons.rounded.BlurOn
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.WifiTethering
+import androidx.compose.material.icons.rounded.BatterySaver
+import androidx.compose.material.icons.rounded.AirplanemodeActive
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.animateFloatAsState
@@ -124,8 +139,8 @@ fun ControlCenter(
     val nx = LocalNexus.current
     AnimatedVisibility(
         visible,
-        enter = fadeIn(tween(nx.dur(200))) + scaleIn(tween(nx.dur(260)), initialScale = 0.94f),
-        exit = fadeOut(tween(nx.dur(160))) + scaleOut(tween(nx.dur(160)), targetScale = 0.96f),
+        enter = fadeIn(tween(nx.dur(200))) + slideInVertically(tween(nx.dur(300), easing = FastOutSlowInEasing)) { -it / 10 },
+        exit = fadeOut(tween(nx.dur(160))) + slideOutVertically(tween(nx.dur(200))) { -it / 14 },
     ) {
         ControlContent(battery, net, torch, onClose, onSystemQs)
     }
@@ -157,18 +172,39 @@ private fun ControlContent(
     val nfc = remember(tick) { SystemControls.nfcState(ctx) }
     val loc = remember(tick) { SystemControls.locationEnabled(ctx) }
     val canWrite = remember(tick) { SystemControls.canWriteSettings(ctx) }
+    val airplane = remember(tick) { SystemControls.airplaneOn(ctx) }
+    val saver = remember(tick) { SystemControls.powerSaveOn(ctx) }
+    val dark = remember(tick) { SystemControls.darkModeOn(ctx) }
+    // Glyph settings page, if this phone has one (found on-device; nothing hard-coded)
+    var glyphIntent by remember { mutableStateOf<android.content.Intent?>(null) }
+    LaunchedEffect(Unit) {
+        if (ControlModules.GLYPH in nx.config.controlModules) glyphIntent = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            com.nexus.launcher.apps.settingshub.NothingDiscovery.find(ctx).firstOrNull { it.subtitle.startsWith("Glyph") }?.intent
+        }
+    }
+    // One-shot HUD scan line when the deck opens (skipped with reduced motion / battery saver graphics)
+    val scan = remember { Animatable(if (nx.quality.tier > 0) 0f else 1f) }
+    LaunchedEffect(Unit) { if (scan.value < 1f) scan.animateTo(1f, tween(nx.dur(700), easing = LinearEasing)) }
     var brightness by remember { mutableFloatStateOf(SystemControls.brightness(ctx)) }
     var autoBright by remember { mutableStateOf(SystemControls.autoBrightness(ctx)) }
     var volume by remember { mutableFloatStateOf(SystemControls.mediaVolume(ctx)) }
     LaunchedEffect(tick) { volume = SystemControls.mediaVolume(ctx) }
 
     val modules = nx.config.controlModules.filter { it in ControlModules.all }
-    val now by rememberNow(false)
 
     Box(
         Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(p.bg.copy(alpha = 0.96f), p.bg.copy(alpha = 0.88f))))
+            .background(p.bg)
+            .drawWithContent {
+                drawContent()
+                val t = scan.value
+                if (t < 1f) {
+                    val y = size.height * t
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, p.accent.copy(alpha = 0.10f * (1f - t))), startY = y - 60.dp.toPx(), endY = y), Offset(0f, y - 60.dp.toPx()), Size(size.width, 60.dp.toPx()))
+                    drawLine(p.accent, Offset(0f, y), Offset(size.width, y), 1.5f, alpha = 0.55f * (1f - t))
+                }
+            }
             .clickable(remember { MutableInteractionSource() }, indication = null) { onClose() }
             .pointerInput(Unit) {
                 var total = 0f
@@ -184,18 +220,7 @@ private fun ControlContent(
             modifier = Modifier.clickable(remember { MutableInteractionSource() }, indication = null) { },
         ) {
             if (nx.config.deckHeader) item(span = { GridItemSpan(maxLineSpan) }, key = "hero") {
-                Row(Modifier.fillMaxWidth().padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(nx.tag(if (nx.tech) "Control deck" else "Quick controls"), style = nx.label(10f, p.accent))
-                        Spacer(Modifier.height(6.dp))
-                        DotMatrixText(now.format(DateTimeFormatter.ofPattern("HH:mm")), pitch = 5.dp, color = p.text)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        BatteryGlyph(battery, Modifier.size(34.dp, 14.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Text("${battery.level}%${if (battery.charging) " · ${battery.source.ifEmpty { "CHG" }}" else ""}", style = nx.label(10f, p.text))
-                    }
-                }
+                DeckHeader(if (nx.tech) "Control deck" else "Quick controls", battery, Modifier.padding(bottom = 6.dp))
             }
             items(modules, key = { it }, span = { m -> if (m in ControlModules.fullWidth) GridItemSpan(maxLineSpan) else GridItemSpan(1) }) { m ->
                 when (m) {
@@ -211,14 +236,14 @@ private fun ControlContent(
                                     },
                                     modifier = Modifier.fillMaxWidth().aspectRatio(1f),
                                 )
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {
-                                    if (canWrite) { autoBright = !autoBright; SystemControls.setAutoBrightness(ctx, autoBright); haptic(Haptic.TICK) }
-                                    else SystemControls.start(ctx, SystemControls.writeSettingsIntent(ctx))
-                                }) {
-                                    Icon(if (autoBright) Icons.Rounded.BrightnessAuto else Icons.Rounded.BrightnessMedium, null, tint = if (autoBright) p.accent else p.textDim, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(if (!canWrite) "GRANT ACCESS" else if (autoBright) "ADAPTIVE" else "MANUAL", style = nx.label(9f, p.textDim))
-                                }
+                                Text(
+                                    if (!canWrite) "GRANT ACCESS" else if (autoBright) "ADAPTIVE" else "MANUAL",
+                                    style = nx.label(9f, if (autoBright) p.accent else p.textDim),
+                                    modifier = Modifier.clip(NxShapes.chip).clickable {
+                                        if (canWrite) { autoBright = !autoBright; SystemControls.setAutoBrightness(ctx, autoBright); haptic(Haptic.TICK) }
+                                        else SystemControls.start(ctx, SystemControls.writeSettingsIntent(ctx))
+                                    }.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
                             }
                         }
                         GlassPanel(Modifier.weight(1f), padding = 10.dp) {
@@ -228,12 +253,12 @@ private fun ControlContent(
                                     onChange = { v -> volume = v; SystemControls.setMediaVolume(ctx, v) },
                                     onDisabledTap = {},
                                     modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                                    tint = p.accent2,
                                 )
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { SystemControls.openVolumePanel(ctx) }) {
-                                    Icon(Icons.AutoMirrored.Rounded.VolumeUp, null, tint = p.textDim, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text("MEDIA · ALL VOLUMES", style = nx.label(9f, p.textDim))
-                                }
+                                Text(
+                                    "MEDIA · ALL VOLUMES", style = nx.label(9f, p.textDim),
+                                    modifier = Modifier.clip(NxShapes.chip).clickable { SystemControls.openVolumePanel(ctx) }.padding(horizontal = 8.dp, vertical = 4.dp),
+                                )
                             }
                         }
                     }
@@ -244,10 +269,14 @@ private fun ControlContent(
                                 Text("${battery.level}%", style = nx.display(28f, p.text, weight = 300))
                             }
                             Column(horizontalAlignment = Alignment.End) {
-                                Text("TEMP ${"%.1f".format(battery.temperatureC)}°C", style = nx.label(9.5f, p.textDim))
-                                Text("VOLT ${"%.2f".format(battery.voltageMv / 1000f)} V", style = nx.label(9.5f, p.textDim))
-                                Text("HEALTH ${battery.health}", style = nx.label(9.5f, p.textDim))
-                                Text(if (battery.charging) "SOURCE ${battery.source.ifEmpty { "—" }}" else "DISCHARGING", style = nx.label(9.5f, p.accent))
+                                // Only what BatteryManager actually reported: no invented telemetry.
+                                if (battery.temperatureC > 0f) Text("TEMP ${"%.1f".format(battery.temperatureC)}°C", style = nx.label(9.5f, p.textDim))
+                                if (battery.voltageMv > 0) Text("VOLT ${"%.2f".format(battery.voltageMv / 1000f)} V", style = nx.label(9.5f, p.textDim))
+                                if (battery.health.isNotBlank() && !battery.health.equals("unknown", true)) Text("HEALTH ${battery.health}", style = nx.label(9.5f, p.textDim))
+                                Text(
+                                    when { battery.full -> "FULL"; battery.charging -> "CHARGING ${battery.source}".trim(); else -> "DISCHARGING" },
+                                    style = nx.label(9.5f, p.accent),
+                                )
                             }
                         }
                     }
@@ -271,6 +300,22 @@ private fun ControlContent(
                         onClick = { SystemControls.openLocation(ctx) }, onLong = { SystemControls.openLocation(ctx) })
                     ControlModules.NFC -> Tile(Icons.Rounded.Nfc, "NFC", when (nfc) { null -> "N/A"; true -> "ON"; false -> "OFF" }, nfc == true, panel = true,
                         onClick = { SystemControls.openNfc(ctx) }, onLong = { SystemControls.openNfc(ctx) })
+                    ControlModules.AIRPLANE -> Tile(Icons.Rounded.AirplanemodeActive, "Airplane mode", if (airplane) "ON" else "OFF", airplane, panel = true,
+                        onClick = { SystemControls.openAirplane(ctx) }, onLong = { SystemControls.openAirplane(ctx) })
+                    ControlModules.BATTERY_SAVER -> Tile(Icons.Rounded.BatterySaver, "Battery saver", if (saver) "ON" else "OFF", saver, panel = true,
+                        onClick = { SystemControls.openBatterySaver(ctx) }, onLong = { SystemControls.openBattery(ctx) })
+                    ControlModules.HOTSPOT -> Tile(Icons.Rounded.WifiTethering, "Hotspot", "SETTINGS", false, panel = true,
+                        onClick = { SystemControls.openHotspot(ctx) }, onLong = { SystemControls.openHotspot(ctx) })
+                    ControlModules.DARK_MODE -> Tile(Icons.Rounded.DarkMode, "Dark mode", if (dark) "ON" else "OFF", dark, panel = true,
+                        onClick = { SystemControls.openDarkMode(ctx) }, onLong = { SystemControls.openDisplay(ctx) })
+                    ControlModules.GLYPH -> Tile(Icons.Rounded.BlurOn, "Glyph", if (glyphIntent != null) "SETTINGS" else "NOT FOUND", false, panel = true,
+                        onClick = { glyphIntent?.let { SystemControls.start(ctx, it) } ?: SystemControls.toast(ctx, "No Glyph settings page on this phone") },
+                        onLong = { glyphIntent?.let { SystemControls.start(ctx, it) } })
+                    ControlModules.CALCULATOR -> Tile(Icons.Rounded.Calculate, "Calculator", "OPEN", false,
+                        onClick = { SystemControls.start(ctx, android.content.Intent(ctx, com.nexus.launcher.apps.calculator.CalculatorActivity::class.java)) }, onLong = {})
+                    ControlModules.NEXUS_HUB -> Tile(Icons.Rounded.Hub, "NEXUS Settings", "OPEN", false,
+                        onClick = { SystemControls.start(ctx, android.content.Intent(ctx, com.nexus.launcher.apps.settingshub.SettingsHubActivity::class.java)) },
+                        onLong = { SystemControls.openSettings(ctx) })
                     ControlModules.SHADE -> Tile(Icons.Rounded.Notifications, "System QS", "OPEN", false, panel = true,
                         onClick = { onSystemQs() }, onLong = { onSystemQs() })
                     ControlModules.SETTINGS -> Tile(Icons.Rounded.Settings, "Settings", "NEXUS HUB · HOLD: SYSTEM", false, panel = true,
@@ -281,7 +326,7 @@ private fun ControlContent(
             }
             item(span = { GridItemSpan(maxLineSpan) }, key = "foot") {
                 Text(
-                    "◆ live control · ◇ opens the official Android panel · swipe up to close",
+                    if (nx.tech) "◇ OPENS THE OFFICIAL ANDROID PANEL · SWIPE UP TO CLOSE" else "◇ opens Android's own panel · swipe up to close",
                     style = nx.label(8.5f, p.textFaint), modifier = Modifier.padding(top = 6.dp),
                 )
             }
@@ -318,7 +363,7 @@ internal fun Tile(
         else -> NxShapes.tile
     }
     val marker: @Composable () -> Unit = {
-        Text(if (panel) "◇" else "◆", style = nx.label(10f, if (panel) p.textFaint else p.accent.copy(alpha = 0.7f)))
+        if (panel) Text("◇", style = nx.label(10f, p.textFaint))
     }
     Box(
         Modifier
@@ -400,9 +445,15 @@ fun RadialDial(
     onChange: (Float) -> Unit,
     onDisabledTap: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Ring colour; null = theme accent. The reference draws LUMEN cyan and AUDIO magenta. */
+    tint: Color? = null,
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
+    val acc = tint ?: p.accent
+    // Follows the finger exactly while dragging; glides to new values set elsewhere (buttons, other apps).
+    var dragging by remember { mutableStateOf(false) }
+    val shown by animateFloatAsState(value, if (dragging) snap() else tween(nx.dur(420), easing = FastOutSlowInEasing), label = "dial")
     val haptic = rememberHaptics()
     val change by rememberUpdatedState(onChange)
     val disabledTap by rememberUpdatedState(onDisabledTap)
@@ -426,7 +477,7 @@ fun RadialDial(
                     }
                 }
                 .pointerInput(Unit) {
-                    detectDragGestures { c, _ ->
+                    detectDragGestures(onDragStart = { dragging = true }, onDragEnd = { dragging = false }, onDragCancel = { dragging = false }) { c, _ ->
                         if (!isEnabled) return@detectDragGestures
                         c.consume()
                         val v = valueAt(c.position, size.width.toFloat(), size.height.toFloat())
@@ -440,7 +491,7 @@ fun RadialDial(
             val r = min(size.width, size.height) / 2 - stroke * 1.6f
             val tl = Offset(center.x - r, center.y - r)
             val sz = Size(r * 2, r * 2)
-            drawArc(p.accent, 135f, 270f, false, tl, sz, alpha = 0.12f, style = Stroke(stroke, cap = StrokeCap.Round))
+            drawArc(acc, 135f, 270f, false, tl, sz, alpha = 0.14f, style = Stroke(stroke, cap = StrokeCap.Round))
             for (i in 0..27) {
                 val a = Math.toRadians((135.0 + i * 10.0)).toFloat()
                 val inner = r + stroke * 0.9f
@@ -448,15 +499,15 @@ fun RadialDial(
                 drawLine(p.accent, Offset(center.x + cos(a) * inner, center.y + sin(a) * inner), Offset(center.x + cos(a) * outer, center.y + sin(a) * outer), 1.2f, alpha = 0.35f)
             }
             if (enabled) {
-                drawArc(Brush.sweepGradient(listOf(p.accent2, p.accent, p.accent), center), 135f, 270f * value, false, tl, sz, style = Stroke(stroke, cap = StrokeCap.Round))
-                val a = Math.toRadians(135.0 + 270.0 * value).toFloat()
+                drawArc(acc, 135f, 270f * shown, false, tl, sz, style = Stroke(stroke, cap = StrokeCap.Round))
+                val a = Math.toRadians(135.0 + 270.0 * shown).toFloat()
                 val k = Offset(center.x + cos(a) * r, center.y + sin(a) * r)
-                drawCircle(p.accent, stroke * 1.3f, k, alpha = 0.2f * (0.5f + nx.glow))
+                drawCircle(acc, stroke * 1.3f, k, alpha = 0.22f * (0.5f + nx.glow))
                 drawCircle(Color.White, stroke * 0.55f, k)
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (enabled) "${(value * 100).toInt()}" else "—", style = nx.display(26f, p.text, weight = 300))
+            Text(if (enabled) "${(shown * 100).roundToInt()}" else "—", style = nx.display(28f, p.text, weight = 300))
             Text(label, style = nx.label(8.5f, p.textDim))
         }
     }

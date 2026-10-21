@@ -18,3 +18,4 @@
 # Kotlin 2.x compiler session cache
 .kotlin/
 /tools/phone-test/reports/
+/sysui-style/build/

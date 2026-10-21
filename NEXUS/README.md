@@ -4,10 +4,29 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
-> **Status (milestone 5, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 73 unit
+> **Status (milestone 6, 2026-10-22): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 82 unit
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 6 — Control Deck reference + NEXUS notification panel
+
+**Layer A (works on your locked phone — a NEXUS screen, not Android's shade):**
+* **Control Deck matched to the reference screenshot:** `// CONTROL DECK` + large digital clock + outlined battery;
+  cyan **LUMEN** and magenta **AUDIO** circular gauges (drag, tap, animated values); POWER CELL with only real
+  BatteryManager data; the eight reference tiles with ◇ on official-panel tiles; pure AMOLED black; drop-down open with a
+  one-shot HUD scan line (off with reduced motion).
+* **More tiles** (Studio › Control center): Airplane, Battery saver, Hotspot, Dark mode, Glyph (opens Nothing's Glyph
+  settings if found), Calculator, NEXUS Settings. Real toggles only where Android allows; otherwise the official panel.
+  Screen recording isn't offered: no public API starts the system recorder.
+* **Notification panel in the deck style** (swipe down on the left): same header, quick strip (Wi-Fi ◇, BT ◇, real Torch
+  and DND, Deck), media panel, angular cards with cyan edge bar and arrival pulse, grouping, per-message expand, swipe
+  dismiss. Heads-up previews no longer cover it.
+* One-time upgrade: an untouched old deck layout moves to the reference's eight tiles; customised layouts are kept.
+
+**Layer B (research + isolated proof of concept):** module `:sysui-style` draws the deck tiles and notification cards as
+plain Android Drawables — the form Nothing OS's View-based SystemUI uses — previewed in Studio. Putting them into the
+real shade needs root or Nothing's key: see [`docs/SYSTEMUI_HOOK_MAP.md`](docs/SYSTEMUI_HOOK_MAP.md).
 
 ## Milestone 5 — safe phone testing and real system integration (track B)
 

@@ -54,14 +54,7 @@ class NexusApp : Application() {
 
         // One-time move to the v2 "Helix" design for configs created by older builds (and fresh installs).
         appScope.launch {
-            store.updateConfig { c ->
-                if (c.designVersion >= DESIGN_VERSION) c
-                else c.copy(
-                    theme = ThemePresets.HelixPrime, presetName = "Helix Prime",
-                    interfaceMode = InterfaceMode.OPERATOR, designVersion = DESIGN_VERSION,
-                    launchAnim = LaunchAnim.HYPERSPACE_JUMP, unlockAnim = UnlockAnim.IRIS_SCAN,
-                )
-            }
+            store.updateConfig { c -> migrateDesign(c) }
         }
     }
 
@@ -71,6 +64,30 @@ class NexusApp : Application() {
     }
 }
 
-const val DESIGN_VERSION = 2
+const val DESIGN_VERSION = 3
+
+/** Control Deck modules every build before milestone 6 saved by default. */
+internal val LEGACY_DECK_DEFAULT = listOf(
+    "DIALS", "BATTERY", "WIFI", "BLUETOOTH", "MOBILE", "FLASHLIGHT", "DND", "ROTATION", "LOCATION", "NFC", "SHADE", "SETTINGS",
+)
+
+/**
+ * One-time design upgrades for configs saved by older builds (and fresh installs).
+ *  v2: the "Helix" design.
+ *  v3: the Control Deck reference layout (eight tiles) — only if the deck was never customised.
+ */
+internal fun migrateDesign(c0: com.nexus.launcher.core.NexusConfig): com.nexus.launcher.core.NexusConfig {
+    var c = c0
+    if (c.designVersion < 2) c = c.copy(
+        theme = ThemePresets.HelixPrime, presetName = "Helix Prime",
+        interfaceMode = InterfaceMode.OPERATOR, designVersion = 2,
+        launchAnim = LaunchAnim.HYPERSPACE_JUMP, unlockAnim = UnlockAnim.IRIS_SCAN,
+    )
+    if (c.designVersion < 3) c = c.copy(
+        controlModules = if (c.controlModules == LEGACY_DECK_DEFAULT) com.nexus.launcher.core.ControlModules.defaultOrder else c.controlModules,
+        designVersion = 3,
+    )
+    return c
+}
 
 val Context.nexus: NexusApp get() = applicationContext as NexusApp

@@ -1,12 +1,22 @@
 # NEXUS test plan
 
-**Status (milestone 5, 2026-10-21):** 73 unit tests pass. **Status (milestone 4):** `assembleDebug assembleRelease lintDebug` succeed and all 65 JVM unit
+**Status (milestone 6, 2026-10-22):** 82 unit tests pass (78 app + 4 sysui-style). **Status (milestone 5):** 73 unit tests pass. **Status (milestone 4):** `assembleDebug assembleRelease lintDebug` succeed and all 65 JVM unit
 tests pass. Milestone 4 items marked *(emulator ✓)* were verified on an Android emulator (API 37), **not** on the phone on Windows 11 with JDK 21. **No item below the "Automated" section has been
 verified on a device yet** — no phone was attached to the build machine. Tick items off on the
 Nothing Phone (3a) before trusting them.
 
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
+
+## Milestone 6
+- [ ] *(emulator ✓)* Swipe down on the right: Control Deck matches the reference — `// CONTROL DECK`, big clock, battery outline + %, cyan LUMEN and magenta AUDIO gauges, POWER CELL, 8 tiles, ◇ footer, pure black.
+- [ ] LUMEN: drag changes real brightness (after "Modify system settings"); tap MANUAL/ADAPTIVE toggles adaptive. AUDIO: drag changes media volume; values glide when changed elsewhere.
+- [ ] POWER CELL shows only values your phone reports (no TEMP/VOLT/HEALTH line if missing); DISCHARGING / CHARGING / FULL correct.
+- [ ] Studio › Control center: enable Airplane, Battery saver, Hotspot, Dark mode, Glyph, Calculator, NEXUS Settings — each opens the right official screen / app; Glyph says "NOT FOUND" if Nothing's Glyph page can't be found.
+- [ ] *(emulator ✓)* Upgrade from M5: deck shows the 8 reference tiles (System QS / Settings gone) unless you had customised the list.
+- [ ] *(emulator ✓)* Swipe down on the left: notification panel — header, quick strip, cards with cyan edge, group counter, ▾ MORE, swipe to dismiss, arrival pulse when a notification lands while open; no heads-up over the header.
+- [ ] *(emulator ✓)* Studio › System › SystemUI renderer: tiles toggle with the glow animation; NFC tile dimmed (unavailable); card replays its pulse.
+- [ ] Reduced motion / Battery-saver graphics: no scan line, no pulses, everything still works.
 
 ## Milestone 5
 - [ ] `tools\phone-test\nexus-phone-test.ps1` (read-only) then `-Install`: prints PASS; Nothing Launcher still default; Nothing Camera, Glyph, Essential Space untouched.

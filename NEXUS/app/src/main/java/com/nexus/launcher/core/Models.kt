@@ -210,9 +210,24 @@ object ControlModules {
     const val NFC = "NFC"
     const val SHADE = "SHADE"
     const val SETTINGS = "SETTINGS"
+    // Extra modules (milestone 6). Real toggle where Android allows it, otherwise the official panel.
+    const val AIRPLANE = "AIRPLANE"
+    const val BATTERY_SAVER = "BATTERY_SAVER"
+    const val HOTSPOT = "HOTSPOT"
+    const val DARK_MODE = "DARK_MODE"
+    const val GLYPH = "GLYPH"
+    const val CALCULATOR = "CALCULATOR"
+    const val NEXUS_HUB = "NEXUS_HUB"
 
-    val all = listOf(DIALS, BATTERY, WIFI, BLUETOOTH, MOBILE, FLASHLIGHT, DND, ROTATION, LOCATION, NFC, SHADE, SETTINGS)
-    val defaultOrder = all
+    val all = listOf(
+        DIALS, BATTERY, WIFI, BLUETOOTH, MOBILE, FLASHLIGHT, DND, ROTATION, LOCATION, NFC,
+        AIRPLANE, BATTERY_SAVER, HOTSPOT, DARK_MODE, GLYPH, CALCULATOR, NEXUS_HUB, SHADE, SETTINGS,
+    )
+    /** The Control Deck reference: dials, power cell and these eight tiles. Everything else is opt-in in Studio. */
+    val defaultOrder = listOf(DIALS, BATTERY, WIFI, BLUETOOTH, MOBILE, FLASHLIGHT, DND, ROTATION, LOCATION, NFC)
+
+    /** Studio label: "BATTERY_SAVER" -> "Battery saver". */
+    fun pretty(m: String): String = m.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
     val fullWidth = setOf(DIALS, BATTERY)
 }
 
