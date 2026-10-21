@@ -48,6 +48,19 @@ third-party camera can use the vendor's Night/HDR/Bokeh processing is **Camera2 
 - **None listed** → any third-party camera gets plain frames; the honest design is to keep the Nothing Camera as the
   camera and make NEXUS's part the launch experience (e.g. hyperspace transition into Nothing Camera), not a replacement.
 
+## Next no-root candidate (milestone 7 proposal): NEXUS live wallpaper on the REAL lock screen
+A `WallpaperService` is drawn by Android itself on the home screen **and behind the genuine lock screen** (Android 14+
+supports a separate live wallpaper for the lock screen). It's the one no-root way to put NEXUS visuals on a real
+system screen:
+- **Lock screen:** NEXUS HUD rings and scan lines behind Nothing's real clock, notifications and fingerprint UI. Those stay
+  Nothing's; the wallpaper owns only the background.
+- **Charging:** the wallpaper can react to `ACTION_POWER_CONNECTED` while visible, so a NEXUS energy-ring animation plays
+  behind the real lock screen when you plug in.
+- **Colours:** `onComputeColors` feeds Material You. Off by default, since you rejected the cyan filter.
+- **Battery:** draw only while visible, frame-capped, static when idle or in Battery Saver; nothing runs when not shown.
+- **Unknowns to verify on your phone:** whether Nothing OS 4.1 allows third-party live wallpapers on the lock screen, and
+  how its AOD treats them. Tier 1, no permissions, fully reversible (pick another wallpaper).
+
 ## Rules kept
 No root, bootloader unlock, flashing or system-component replacement. Tier 3/4 work stays design-only until you
 approve it separately in writing, with backup, exact firmware match and a tested recovery path (see `09` §5 and

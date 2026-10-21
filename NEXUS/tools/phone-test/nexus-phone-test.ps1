@@ -23,7 +23,12 @@ param(
     [switch]$Install,
     [switch]$Uninstall,
     [string]$Apk = "",
-    [string]$Adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe"
+    [string]$Adb = "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe",
+    # Uninstall even while NEXUS is the default Home app (Android then picks/asks for a launcher).
+    [switch]$Force,
+    # Test mode: run the full flow against an Android EMULATOR (ro.kernel.qemu=1) to check the script itself.
+    # Never relaxes the checks for a real phone.
+    [switch]$AllowEmulator
 )
 
 $ErrorActionPreference = "Stop"
@@ -39,9 +44,17 @@ function Q([string]$cmd) {
 if (-not (Test-Path $Adb)) { throw "adb not found at $Adb (install Android SDK Platform-Tools)" }
 $devices = @((& $Adb devices) | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" })
 if ($devices.Count -ne 1) { throw "Connect exactly one phone with USB debugging authorised (found $($devices.Count))." }
+$maker = Q "getprop ro.product.manufacturer"
 $device = Q "getprop ro.product.device"
-if ($device -notlike "Asteroids*") { throw "This script is only for the Nothing Phone (3a) (codename Asteroids*); found '$device'." }
-if ((Q "getprop ro.kernel.qemu") -eq "1") { throw "This is an emulator, not the phone." }
+$name = Q "getprop ro.product.name"
+$model = Q "getprop ro.product.model"
+$isEmulator = (Q "getprop ro.kernel.qemu") -eq "1"
+Write-Host "Connected: manufacturer='$maker' device='$device' name='$name' model='$model' emulator=$isEmulator"
+$isPhone3a = (-not $isEmulator) -and ($maker -like "Nothing*") -and
+    (($device -like "Asteroids*") -or ($name -like "Asteroids*") -or ($model -like "A059*"))
+if ($isEmulator -and -not $AllowEmulator) { throw "This is an emulator, not the phone (use -AllowEmulator only to test the script)." }
+if (-not $isEmulator -and -not $isPhone3a) { throw "This script is only for the Nothing Phone (3a) (Nothing / Asteroids / A059). Nothing was changed." }
+if ($isEmulator) { Write-Host "TEST MODE: emulator, not your phone." -ForegroundColor Yellow }
 
 function Snapshot {
     $s = [ordered]@{}
@@ -82,6 +95,12 @@ if (-not $Install -and -not $Uninstall) {
 
 if ($Install) {
     if (-not $Apk -or -not (Test-Path $Apk)) { throw "Pass -Apk <path to NEXUS APK>." }
+    # Refuse anything that isn't the NEXUS app (wrong file, renamed APK, other app).
+    $aapt = Get-ChildItem "$env:LOCALAPPDATA\Android\Sdk\build-tools\*\aapt2.exe" -ErrorAction SilentlyContinue | Sort-Object FullName | Select-Object -Last 1
+    if (-not $aapt) { throw "aapt2 not found in the Android SDK build-tools; can't verify the APK, so nothing was installed." }
+    $badging = (& $aapt.FullName dump badging "$Apk" 2>$null | Select-Object -First 1)
+    if ($badging -notmatch "name='$Pkg'") { throw "That APK is not NEXUS ($badging). Nothing was installed." }
+    Write-Host "APK verified: $badging"
     Write-Host "`nInstalling $Apk as an ordinary app (no permissions granted, launcher NOT changed)..."
     $ErrorActionPreference = "Continue"
     $res = & $Adb install -r "$Apk" 2>&1
@@ -90,6 +109,9 @@ if ($Install) {
     if (($res -join "`n") -notmatch "Success") { throw "Install failed - nothing else was changed." }
 }
 if ($Uninstall) {
+    if ($before.HomeApp -match $Pkg -and -not $Force) {
+        throw "NEXUS is your default Home app. Switch back first (Settings > Apps > Default apps > Home app > Nothing Launcher), then run -Uninstall again. Nothing was changed."
+    }
     Write-Host "`nUninstalling NEXUS..."
     & $Adb uninstall $Pkg
 }
@@ -117,3 +139,4 @@ if ($problems.Count -eq 0) {
     $problems | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
 }
 Write-Host "Undo at any time: powershell -ExecutionPolicy Bypass -File nexus-phone-test.ps1 -Uninstall"
+if ($problems.Count -gt 0) { exit 1 }

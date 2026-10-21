@@ -34,6 +34,15 @@ The first command only **reads** (default Home app, Nothing packages, camera app
 **PASS** only if your Home/Phone/Camera apps and every Nothing/Glyph package are unchanged.
 `-Uninstall` removes NEXUS. Reports go to `tools\phone-test\reports\`.
 
+Safety built into the script (each path tested on an emulator in test mode):
+- refuses to run unless the connected device is a Nothing Phone (3a) (manufacturer Nothing + Asteroids/A059);
+- refuses to install anything that isn't the NEXUS app (checks the APK's package name first);
+- never grants permissions, never downgrades, never changes your default Home app;
+- refuses to uninstall while NEXUS is your Home app — switch back to Nothing Launcher first;
+- exits with an error (code 1) if any default app or Nothing/Glyph package changed.
+
+Your phone may show a Play Protect prompt for the USB install; that's normal for apps not from the Play Store.
+
 ## 2. Install the APK — choose one
 
 **A. With a USB cable (recommended)**
