@@ -112,6 +112,28 @@
             </intent-filter>
         </activity>
 
+        <!-- NEXUS Calculator: standalone app with its own icon and task. APP_CALCULATOR only makes it
+             selectable as "a calculator"; it does not change any default or role. -->
+        <activity
+            android:name=".apps.calculator.CalculatorActivity"
+            android:exported="true"
+            android:icon="@mipmap/ic_calculator"
+            android:roundIcon="@mipmap/ic_calculator"
+            android:label="@string/calculator_label"
+            android:taskAffinity="com.nexus.launcher.calculator"
+            android:windowSoftInputMode="stateAlwaysHidden"
+            android:theme="@style/Theme.Nexus">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.APP_CALCULATOR" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <!-- NEXUS lock layer: a skin in front of Android's secure keyguard, never a replacement -->
         <activity
             android:name=".lock.LockLayerActivity"

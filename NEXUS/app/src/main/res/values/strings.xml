@@ -7,4 +7,5 @@
     <string name="a11y_description">Optional. Lets NEXUS perform three system actions you assign to home-screen gestures: lock the screen, open the notification shade and open Quick Settings. NEXUS does not read screen content, collect data or observe other apps.</string>
     <string name="dream_label">NEXUS Ambient</string>
     <string name="dialer_label">NEXUS Comms</string>
+    <string name="calculator_label">NEXUS Calculator</string>
 </resources>

@@ -10,3 +10,6 @@
 .cxx/
 *.apk
 *.aab
+
+# research experiment backups (device-specific)
+/research/**/palette-backup.txt

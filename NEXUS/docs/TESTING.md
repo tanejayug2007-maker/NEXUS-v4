@@ -1,10 +1,27 @@
 # NEXUS test plan
 
-Nothing in this list has been run yet — the project was written without an Android build
-environment. Tick items off on a real Nothing Phone (or emulator API 31+) before trusting them.
+**Status (milestone 1, 2026-10-21):** the project builds (`assembleDebug`, `assembleRelease`) and all
+57 JVM unit tests pass on Windows 11 with JDK 21. **No item below the "Automated" section has been
+verified on a device yet** — no phone was attached to the build machine. Tick items off on the
+Nothing Phone (3a) before trusting them.
 
 ## Automated
-- [ ] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility.
+- [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
+
+## NEXUS Calculator (milestone 1)
+- [ ] "NEXUS Calculator" appears in the app list (both NEXUS's drawer and Nothing Launcher) with the hexagon "=" icon; opens in its own task (shows separately in Recents).
+- [ ] `0.1 + 0.2 =` shows `0.3`; `1 ÷ 3 × 3 =` shows `1`; `200 + 10 % =` shows `220`; `5 ÷ 0 =` shows "Can't divide by zero" and does not crash.
+- [ ] Typing `007` shows `7`; a second `.` in one number is ignored; `5 + ×` becomes `5 ×`; `5 × −` allows a negative operand.
+- [ ] Live preview (`= …`) updates while typing; half-typed input (`2 +`) shows no error.
+- [ ] After `=`, a digit starts a new calculation; an operator continues from the result.
+- [ ] ⌫ deletes one key (a whole `sin(`); long-press ⌫ clears; AC clears.
+- [ ] SCI: `sin(30)` = 0.5 in DEG; switch to RAD, `sin(π)` = 0; 2ND shows sin⁻¹/cos⁻¹/tan⁻¹/eˣ/10ˣ/|x|/1/x; `5!` = 120; `√2`; `Ans`.
+- [ ] History: results listed newest first; tap one to edit it; Clear empties it; history, DEG/RAD and SCI survive force-stop and reboot.
+- [ ] Rotate mid-expression: expression kept; landscape layout shows display left, keys right.
+- [ ] Long-press the result → "Result copied"; paste elsewhere gives a plain number (no grouping commas).
+- [ ] Change the theme / Light mode / shape style / wording in NEXUS Studio → reopen Calculator → it follows.
+- [ ] Battery Saver or "Remove animations" on → no result pulse ring; keys still respond.
+- [ ] TalkBack reads keys as words ("Multiply", "Change sign") and the expression with operators spoken.
 
 ## Launcher core
 - [ ] Install, open NEXUS Studio, **Set default** → system dialog appears, NEXUS selected.

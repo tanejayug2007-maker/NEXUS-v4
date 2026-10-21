@@ -4,10 +4,17 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
-> **Status: source complete, not yet compiled.** This project was written in an environment without the
-> Android SDK, so it has **not** been built or run on a device yet. Expect to fix a handful of small
-> compile errors on first build (the code was syntax-checked, and core logic has unit tests). Please
-> follow the test checklist in [`docs/TESTING.md`](docs/TESTING.md) before relying on any feature.
+> **Status (milestone 1, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease` and all 57 unit
+> tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
+> [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
+> **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 1 — NEXUS Calculator
+
+A real standalone calculator with its own icon ("NEXUS Calculator") and task: exact decimal arithmetic
+(0.1 + 0.2 = 0.3), scientific mode (trig in DEG/RAD with inverses, ln/log, √, x², xʸ, x!, π, e, Ans),
+desk-calculator percent, live result preview, persistent history, copy result, portrait and landscape.
+It follows your NEXUS Studio theme, light/dark mode, shape style and wording.
 
 ---
 
@@ -120,7 +127,10 @@ icon pack.
 2. Unzip `NEXUS.zip` somewhere without spaces in the path, e.g. `C:\dev\NEXUS`.
 3. Android Studio → **File › Open** → select the `NEXUS` folder → **Trust project**.
 4. Wait for **Gradle Sync** to finish (first time downloads ~1 GB of dependencies).
-   If Studio offers an *AGP Upgrade Assistant*, you can accept it.
+   **Gradle JDK must be 17 or 21.** Newer Android Studio builds bundle JDK 25, which Gradle 8.11.1 can't
+   run on (the error is just "What went wrong: 25.0.3"). Fix: *Settings › Build, Execution, Deployment ›
+   Build Tools › Gradle › Gradle JDK* → `jbr-21`. For `gradlew.bat` in a terminal, first run
+   `set JAVA_HOME=C:\Users\<you>\.jdks\jbr-21.0.11` (or any JDK 21).
 5. **Build › Build App Bundle(s) / APK(s) › Build APK(s)**.
    The APK appears at `app\build\outputs\apk\debug\app-debug.apk`.
 
@@ -220,6 +230,8 @@ app/src/main/java/com/nexus/launcher/
   ui/components            glass panels, controls, icons, gestures, frame stats
   ui/home                  home root, grid (drag & drop), CORE dashboard, status strip, folders, menus
   ui/drawer ui/widgets ui/notifications ui/control ui/settings
+  apps/calculator          NEXUS Calculator: pure-Kotlin engine + input model, ViewModel, Compose UI
+research/                  ADB experiments for the real system UI — never packaged into the APK
 app/src/test/              LayoutOps, Search, config, glyph, console, experience and light-palette tests
 ```
 
