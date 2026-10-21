@@ -13,3 +13,4 @@
 
 # research experiment backups (device-specific)
 /research/**/palette-backup.txt
+/research/**/reports/

@@ -125,7 +125,10 @@ object CallManager {
             .setContentIntent(screen)
             .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, decline, answer))
             .build()
-        runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID, n) }
+        // Android 13+: without the notification permission the call UI still opens via CallActivity.
+        val canPost = android.os.Build.VERSION.SDK_INT < 33 || androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (canPost) runCatching { NotificationManagerCompat.from(context).notify(NOTIF_ID, n) }
     }
 
     fun clearIncoming(context: Context) {

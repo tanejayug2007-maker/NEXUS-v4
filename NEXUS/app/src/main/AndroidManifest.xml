@@ -28,7 +28,8 @@
     <!-- Optional NEXUS lock layer (shown over the secure lock screen when the screen turns on) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
-    <!-- Optional: NEXUS as default phone app (custom call screens) -->
+    <!-- Optional: NEXUS as default phone app (custom call screens). Telephony is not required to install. -->
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
     <uses-permission android:name="android.permission.CALL_PHONE" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -133,6 +134,67 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+
+        <!-- NEXUS Settings Hub: NEXUS-styled front door to the REAL Settings pages (not a replacement) -->
+        <activity
+            android:name=".apps.settingshub.SettingsHubActivity"
+            android:exported="true"
+            android:icon="@mipmap/ic_settings_hub"
+            android:roundIcon="@mipmap/ic_settings_hub"
+            android:label="@string/settings_hub_label"
+            android:taskAffinity="com.nexus.launcher.settingshub"
+            android:windowSoftInputMode="adjustResize|stateHidden"
+            android:theme="@style/Theme.Nexus">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Quick Settings tiles: real tiles in the real QS panel (public TileService API).
+             BIND_QUICK_SETTINGS_TILE means only the system can bind them. -->
+        <service
+            android:name=".system.tiles.NexusTorchTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_torch"
+            android:label="@string/tile_torch"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+        </service>
+        <service
+            android:name=".system.tiles.NexusEcoTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_eco"
+            android:label="@string/tile_eco"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+            <meta-data android:name="android.service.quicksettings.TOGGLEABLE_TILE" android:value="true" />
+        </service>
+        <service
+            android:name=".system.tiles.NexusCalculatorTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_calc"
+            android:label="@string/tile_calc"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service
+            android:name=".system.tiles.NexusSettingsHubTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_settings"
+            android:label="@string/tile_hub"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
+        <service
+            android:name=".system.tiles.NexusShellTile"
+            android:exported="true"
+            android:icon="@drawable/ic_tile_shell"
+            android:label="@string/tile_shell"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
+        </service>
 
         <!-- NEXUS lock layer: a skin in front of Android's secure keyguard, never a replacement -->
         <activity

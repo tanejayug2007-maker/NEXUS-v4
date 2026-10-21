@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.7.3" type="baseline" client="gradle" dependencies="false" name="AGP (8.7.3)" variant="all" version="8.7.3">
+
+    <issue
+        id="ModifierFactoryExtensionFunction"
+        message="Modifier factory functions should be extensions on Modifier"
+        errorLine1="private fun widthOf(d: androidx.compose.ui.unit.Dp) = Modifier.width(d)"
+        errorLine2="            ~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/call/CallScreen.kt"
+            line="410"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ModifierParameter"
+        message="Modifier parameter should be the first optional parameter"
+        errorLine1="    modifier: Modifier = Modifier,"
+        errorLine2="    ~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/components/Glass.kt"
+            line="241"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ProduceStateDoesNotAssignValue"
+        message="produceState calls should assign `value` inside the producer lambda"
+        errorLine1="    val bitmap: ImageBitmap? by produceState(engine.cached(app, spec, overrideUri), app.key, spec, overrideUri) {"
+        errorLine2="                                ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/components/AppIcon.kt"
+            line="67"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="ProduceStateDoesNotAssignValue"
+        message="produceState calls should assign `value` inside the producer lambda"
+        errorLine1="    val elapsed by produceState(0L, ui.connectTime, ui.phase) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/call/CallScreen.kt"
+            line="108"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="ProduceStateDoesNotAssignValue"
+        message="produceState calls should assign `value` inside the producer lambda"
+        errorLine1="fun rememberNow(seconds: Boolean): State&lt;LocalDateTime> = produceState(LocalDateTime.now(), seconds) {"
+        errorLine2="                                                          ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/home/Dashboard.kt"
+            line="80"
+            column="59"/>
+    </issue>
+
+    <issue
+        id="ProduceStateDoesNotAssignValue"
+        message="produceState calls should assign `value` inside the producer lambda"
+        errorLine1="    val shortcuts by produceState&lt;List&lt;Pair&lt;ShortcutInfo, ImageBitmap?>>>(emptyList(), app?.key) {"
+        errorLine2="                     ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/home/ItemMenu.kt"
+            line="115"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="ProduceStateDoesNotAssignValue"
+        message="produceState calls should assign `value` inside the producer lambda"
+        errorLine1="    val img by produceState&lt;ImageBitmap?>(null, data) {"
+        errorLine2="               ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/widgets/NexusModules2.kt"
+            line="267"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="ProduceStateDoesNotAssignValue"
+        message="produceState calls should assign `value` inside the producer lambda"
+        errorLine1="    val preview by produceState&lt;ImageBitmap?>(null, row.info.provider) {"
+        errorLine2="                   ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/widgets/WidgetPicker.kt"
+            line="125"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="DataExtractionRules"
+        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
+        errorLine1="        android:allowBackup=&quot;false&quot;"
+        errorLine2="                             ~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="65"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 29. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var fps by remember { mutableStateOf(0) }"
+        errorLine2="                          ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/components/FrameStats.kt"
+            line="29"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var jank by remember { mutableStateOf(0) }"
+        errorLine2="                           ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/components/FrameStats.kt"
+            line="30"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="    var worst by remember { mutableStateOf(0f) }"
+        errorLine2="                            ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/components/FrameStats.kt"
+            line="31"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var mem by remember { mutableStateOf(0) }"
+        errorLine2="                          ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/fx/HudChrome.kt"
+            line="55"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="val LocalHeading = compositionLocalOf&lt;State&lt;Float>> { mutableStateOf(0f) }"
+        errorLine2="                                                      ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/fx/Parallax.kt"
+            line="30"
+            column="55"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableFloatStateOf` instead of `mutableStateOf`"
+        errorLine1="    val heading = remember { mutableStateOf(0f) }"
+        errorLine2="                             ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/fx/Parallax.kt"
+            line="73"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="AutoboxingStateCreation"
+        message="Prefer `mutableIntStateOf` instead of `mutableStateOf`"
+        errorLine1="    var style by remember { mutableStateOf(0) }"
+        errorLine2="                            ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/settings/StudioSurfaces.kt"
+            line="228"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="ClickableViewAccessibility"
+        message="Custom view `NexusWidgetHostView` overrides `onTouchEvent` but not `performClick`"
+        errorLine1="    override fun onTouchEvent(event: MotionEvent): Boolean {"
+        errorLine2="                 ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/ui/widgets/WidgetHost.kt"
+            line="49"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        text = &quot;WIDGET OFFLINE\nlong-press › remove&quot;"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/MainActivity.kt"
+            line="436"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        text = &quot;WIDGET OFFLINE\nlong-press › remove&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/MainActivity.kt"
+            line="436"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        text = &quot;WIDGET OFFLINE\nlong-press › remove&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/nexus/launcher/MainActivity.kt"
+            line="436"
+            column="33"/>
+    </issue>
+
+</issues>

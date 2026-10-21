@@ -13,8 +13,8 @@ android {
         applicationId = "com.nexus.launcher"
         minSdk = 29          // Android 10+. Every Nothing Phone ships Android 12 or newer.
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.1.0-m2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -54,6 +54,11 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+    lint {
+        // Known false positives (produceState with `by` delegates) are recorded here; any NEW lint
+        // error fails `gradlew lintDebug`.
+        baseline = file("lint-baseline.xml")
     }
 }
 

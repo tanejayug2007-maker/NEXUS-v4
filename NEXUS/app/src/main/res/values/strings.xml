@@ -8,4 +8,10 @@
     <string name="dream_label">NEXUS Ambient</string>
     <string name="dialer_label">NEXUS Comms</string>
     <string name="calculator_label">NEXUS Calculator</string>
+    <string name="settings_hub_label">NEXUS Settings Hub</string>
+    <string name="tile_torch">NEXUS Torch</string>
+    <string name="tile_eco">NEXUS Eco FX</string>
+    <string name="tile_calc">Calculator</string>
+    <string name="tile_hub">NEXUS Settings</string>
+    <string name="tile_shell">NEXUS Shell</string>
 </resources>

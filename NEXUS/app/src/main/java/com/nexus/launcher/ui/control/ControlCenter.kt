@@ -2,6 +2,12 @@ package com.nexus.launcher.ui.control
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -93,7 +99,6 @@ import com.nexus.launcher.ui.fx.DotMatrixText
 import com.nexus.launcher.ui.home.BatteryGlyph
 import com.nexus.launcher.ui.home.rememberNow
 import com.nexus.launcher.ui.theme.LocalNexus
-import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -140,9 +145,10 @@ private fun ControlContent(
     val haptic = rememberHaptics()
     val torchOn by torch.on.collectAsStateWithLifecycle()
 
-    // Poll cheap system state only while visible.
+    // Re-read system state when the deck opens, after every action, and whenever NEXUS resumes
+    // (i.e. after returning from a system panel) — no background polling.
     var tick by remember { mutableIntStateOf(0) }
-    LaunchedEffect(Unit) { while (true) { delay(1500); tick++ } }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { tick++ }
     val wifi = remember(tick) { SystemControls.wifiEnabled(ctx) }
     val bt = remember(tick) { SystemControls.bluetoothEnabled(ctx) }
     val dnd = remember(tick) { SystemControls.dndOn(ctx) }
@@ -266,14 +272,15 @@ private fun ControlContent(
                         onClick = { SystemControls.openNfc(ctx) }, onLong = { SystemControls.openNfc(ctx) })
                     ControlModules.SHADE -> Tile(Icons.Rounded.Notifications, "System QS", "OPEN", false, panel = true,
                         onClick = { onSystemQs() }, onLong = { onSystemQs() })
-                    ControlModules.SETTINGS -> Tile(Icons.Rounded.Settings, "Settings", "DEVICE", false, panel = true,
-                        onClick = { SystemControls.openSettings(ctx) }, onLong = { SystemControls.openSettings(ctx) })
+                    ControlModules.SETTINGS -> Tile(Icons.Rounded.Settings, "Settings", "NEXUS HUB · HOLD: SYSTEM", false, panel = true,
+                        onClick = { SystemControls.start(ctx, android.content.Intent(ctx, com.nexus.launcher.apps.settingshub.SettingsHubActivity::class.java)) },
+                        onLong = { SystemControls.openSettings(ctx) })
                     else -> Unit
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }, key = "foot") {
                 Text(
-                    "◇ = opens the official Android panel · swipe up or tap outside to close",
+                    "◆ LIVE = NEXUS changes the real setting · ◇ = opens the official Android panel · swipe up or tap outside to close",
                     style = nx.label(8.5f, p.textFaint), modifier = Modifier.padding(top = 6.dp),
                 )
             }
@@ -294,22 +301,34 @@ private fun Tile(
 ) {
     val nx = LocalNexus.current
     val p = nx.palette
+    // Energise on/off: the accent fill and ring fade between states instead of snapping, and a
+    // press briefly "charges" the tile. Driven by draw-phase reads only (no extra recomposition).
+    val energy by animateFloatAsState(if (active) 1f else 0f, tween(nx.dur(320)), label = "tileEnergy")
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 1f else 0f, tween(if (pressed) nx.dur(70) else nx.dur(240)), label = "tilePress")
+    val iconTint = androidx.compose.ui.graphics.lerp(p.textDim, p.accent, energy)
     Column(
         Modifier
             .fillMaxWidth()
             .height(84.dp)
+            .graphicsLayer { val s = 1f - 0.04f * press; scaleX = s; scaleY = s }
             .clip(NxShapes.tile)
-            .background(if (active) Brush.linearGradient(listOf(p.accent.copy(alpha = 0.30f), p.accent.copy(alpha = 0.10f))) else Brush.linearGradient(listOf(p.panelTop, p.panel)))
-            .border(1.dp, if (active) p.accent.copy(alpha = 0.8f) else p.border, NxShapes.tile)
-            .combinedClickable(onClick = onClick, onLongClick = onLong)
+            .background(Brush.linearGradient(listOf(p.panelTop, p.panel)))
+            .drawBehind {
+                if (energy > 0.01f) drawRect(Brush.linearGradient(listOf(p.accent.copy(alpha = 0.30f * energy), p.accent.copy(alpha = 0.10f * energy))))
+                if (press > 0.01f) drawRect(p.accent, alpha = 0.16f * press)
+            }
+            .border(1.dp, androidx.compose.ui.graphics.lerp(p.border, p.accent.copy(alpha = 0.8f), energy), NxShapes.tile)
+            .combinedClickable(interactionSource = source, indication = null, onClick = onClick, onLongClick = onLong)
             .semantics { contentDescription = title; stateDescription = state }
             .padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(icon, null, tint = if (active) p.accent else p.textDim, modifier = Modifier.size(20.dp))
+            Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
             Spacer(Modifier.weight(1f))
-            if (panel) Text("◇", style = nx.label(10f, p.textFaint))
+            Text(if (panel) "◇" else "◆", style = nx.label(10f, if (panel) p.textFaint else p.accent.copy(alpha = 0.7f)))
         }
         Column {
             Text(title, style = nx.body(13.5f), maxLines = 1)

@@ -1,12 +1,34 @@
 # NEXUS test plan
 
-**Status (milestone 1, 2026-10-21):** the project builds (`assembleDebug`, `assembleRelease`) and all
-57 JVM unit tests pass on Windows 11 with JDK 21. **No item below the "Automated" section has been
+**Status (milestone 2, 2026-10-21):** a clean build (`clean assembleDebug assembleRelease lintDebug`)
+succeeds and all 63 JVM unit tests pass on Windows 11 with JDK 21. **No item below the "Automated" section has been
 verified on a device yet** — no phone was attached to the build machine. Tick items off on the
 Nothing Phone (3a) before trusting them.
 
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
+
+## NEXUS Settings Hub (milestone 2)
+- [ ] "NEXUS Settings Hub" icon opens the hub in its own task. Core ring shows the real battery % (compare with the status bar); charging label appears when plugged in.
+- [ ] WIFI / BT / LOC / DND segments match the real state; change one in system Quick Settings, return → hub updates.
+- [ ] Every row opens a genuine Settings page or panel (note any that open the wrong page). No row shows "isn't available".
+- [ ] Search: "wifi", "upi", "usb debugging", "brightness" find the right rows; "zzzz" shows "No matching setting".
+- [ ] Live controls: Torch toggles the real flashlight. DND / Rotate / Auto / Brightness show **GRANT** while those optional permissions are off — **don't grant during initial testing**; tapping only opens Android's permission page (Back returns). Media volume slider changes real media volume.
+- [ ] Nothing OS panel lists Nothing apps found on the phone (e.g. Essential Space) and, if present, Glyph settings pages; each opens correctly.
+- [ ] Quick Settings tiles panel: "ADD" shows Android's own "Add tile?" dialog (Android 13+); Cancel adds nothing.
+
+## Quick Settings tiles (milestone 2)
+- [ ] Add each NEXUS tile (hub or QS edit mode). Tiles look like normal Nothing OS tiles with the NEXUS hex icons.
+- [ ] NEXUS Torch: toggles flashlight; state stays in sync with the system flashlight tile.
+- [ ] NEXUS Eco FX: on → Studio › Performance shows Battery Saver and the home background goes static; off → previous mode returns.
+- [ ] Calculator / NEXUS Settings tiles: open the app and collapse the shade. **On the lock screen they first ask for Android's unlock**, never open over the keyguard.
+- [ ] NEXUS Shell: unavailable with "Set NEXUS as Home" while Nothing Launcher is Home; with NEXUS as Home it opens the shell.
+- [ ] Remove all NEXUS tiles → nothing NEXUS-related remains in QS.
+
+## Control Deck (milestone 2)
+- [ ] Tiles fade between on/off (no snap) and dip slightly on press; ◆ marks real toggles, ◇ marks system panels.
+- [ ] Turn Wi-Fi off in the ◇ panel, close it → the Wi-Fi tile updates on return (no polling while the deck is open).
+- [ ] Settings tile opens the NEXUS Settings Hub; long-press opens stock Settings.
 
 ## NEXUS Calculator (milestone 1)
 - [ ] "NEXUS Calculator" appears in the app list (both NEXUS's drawer and Nothing Launcher) with the hexagon "=" icon; opens in its own task (shows separately in Recents).

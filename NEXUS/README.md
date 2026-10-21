@@ -4,10 +4,22 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
-> **Status (milestone 1, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease` and all 57 unit
+> **Status (milestone 2, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 63 unit
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 2 — Settings Hub, Quick Settings tiles, Control Deck
+
+* **NEXUS Settings Hub** (own icon): a NEXUS-styled front door to the *real* Android/Nothing settings.
+  Every row is badged **LIVE** (NEXUS changes it), **PANEL** (Android's floating panel) or **SYSTEM**
+  (opens the genuine page). Live HUD core with battery and radio status; search; Nothing apps and Glyph
+  pages discovered on the phone. It does not replace or reskin Android Settings.
+* **5 real Quick Settings tiles**: NEXUS Torch, Eco FX (low-power NEXUS graphics), Calculator,
+  NEXUS Settings, NEXUS Shell. They live in the real QS panel in Nothing OS's own tile style.
+* **Control Deck**: no background polling, animated tile states, ◆ LIVE / ◇ PANEL markers, Settings → Hub.
+* **Research module** (`research/`): read-only SystemUI probe + the M1 palette experiment.
+* Install safely: [`docs/INSTALL.md`](docs/INSTALL.md).
 
 ## Milestone 1 — NEXUS Calculator
 

@@ -113,6 +113,7 @@ half4 main(float2 fragCoord) {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
 private fun RuntimeShader.color(name: String, c: Color) = setFloatUniform(name, c.red, c.green, c.blue, c.alpha)
 
 /** Animated nebula field. Falls back to a gradient + star Canvas below Android 13. */

@@ -3,6 +3,9 @@
 Target: **Nothing Phone (3a)** (Asteroids / AsteroidsIND), **Nothing OS 4.1 / Android 16**, bootloader
 **locked**, no root, verified boot green. Audit date: 2026-10-21 (milestone 1).
 
+> **Milestone 2 update (2026-10-21):** see §10 for what changed. Everything below is still
+> build-verified only, not device-verified.
+
 > **How this audit was done.** Source-level review of the NEXUS V4 project plus a real build on the
 > Windows machine (JDK 21, AGP 8.7.3, Gradle 8.11.1). No phone was connected over ADB, so **nothing in
 > this document has been verified on the device**. The reference screenshots mentioned in the brief were
@@ -64,7 +67,7 @@ screen that resembles a system surface · **Partial** · **Missing** · **Not po
 |---|---|---|---|
 | NEXUS notification feed (grouped cards, swipe dismiss, popups, media) | **Sim** | 2 | `NotificationListenerService`. A launcher view; the real shade is untouched. |
 | NEXUS Control Deck (torch, DND, brightness, rotate, volume) | **Sim** with real controls | 2 | Real toggles where Android allows; Wi-Fi/BT/mobile data open system panels because Android 10+ forbids third-party toggling. |
-| NEXUS Quick Settings **tiles inside the real QS panel** | Missing | 2 | `TileService` — real tiles in the real panel, but drawn with the system's tile style. Good next step. |
+| NEXUS Quick Settings **tiles inside the real QS panel** | **Works (build) — milestone 2** | 1 | 5 `TileService` tiles (Torch, Eco FX, Calculator, Settings Hub, Shell). Real tiles in the real panel, drawn in Nothing OS's tile style. |
 | Real shade/QS colours | Experiment | 2 | Material You seed colour — see §5 |
 | Real shade/QS layout, tile shapes, animations, notification card style | Not possible | 3 / 4 | Needs LSPosed hooks on `QSTileViewImpl`, `QSPanel`, `QuickStatusBarHeader`, `NotificationStackScrollLayout` (root) or a platform-signed SystemUI overlay. Your AAPT2 finding (no overlayable resources) rules out a non-root RRO. |
 
@@ -93,7 +96,7 @@ screen that resembles a system surface · **Partial** · **Missing** · **Not po
 | Feature | Status | Tier | Notes |
 |---|---|---|---|
 | NEXUS Studio (launcher customisation) | Works (build) | 1 | |
-| NEXUS Settings hub (NEXUS-styled index that deep-links into real Settings pages) | Missing | 1 | Interim answer to "real Settings redesign": every row opens the genuine page (`Settings.ACTION_WIFI_SETTINGS`, `ACTION_BLUETOOTH_SETTINGS`, `ACTION_DISPLAY_SETTINGS`, Settings panels…). No fake toggles. |
+| NEXUS Settings Hub (NEXUS-styled index that deep-links into real Settings pages) | **Works (build) — milestone 2** | 1–2 | Interim answer to "real Settings redesign": every row opens the genuine page (`Settings.ACTION_WIFI_SETTINGS`, `ACTION_BLUETOOTH_SETTINGS`, `ACTION_DISPLAY_SETTINGS`, Settings panels…). No fake toggles. |
 | Reskinning stock Settings | Not possible | 4 | Settings is a platform-signed priv-app; only the Material You colours (§5) reach it |
 
 ### G. Camera
@@ -234,3 +237,47 @@ Unlocking **erases all user data** (photos, WhatsApp, everything not backed up).
 Integrity "strong" verdict fails; many banking/UPI apps and some DRM content may stop working, and OTA
 updates become complicated. Relocking with modified partitions can brick the device and must never be
 done. None of this is required for anything in Phases 1–5.
+
+---
+
+## 10. Milestone 2 — what changed (2026-10-21)
+
+### Functional vs simulated vs privileged — milestone 2 additions
+| Feature | Category | What it really does |
+|---|---|---|
+| NEXUS Settings Hub | **Functional** (NEXUS app) | NEXUS-styled index of ~45 real Settings destinations across 10 categories + Nothing apps/Glyph pages discovered on the phone. Each row opens the **genuine** page (SYSTEM) or Android's floating panel (PANEL); rows the phone can't open are hidden. It does **not** replace or reskin Android Settings. |
+| Hub live controls | **Functional** | Torch, media volume (no permission); DND, auto-rotate, adaptive brightness, brightness (only after you grant the optional permission — shown as GRANT, never auto-requested). |
+| Hub status core | **Functional** (read-only) | Real battery %, charging, temperature, health; Wi-Fi/BT/location/DND state. |
+| QS tiles ×5 | **Functional**, real system integration | Live in the real QS panel. NEXUS sets icon/label/state only; Android draws the tile. Launching tiles ask for Android's unlock first on the lock screen. |
+| "Add tile" buttons | **Functional** | Android 13+ `requestAddTileService` → Android's own confirmation dialog. |
+| Control Deck | **Simulated panel** with real controls | Still a NEXUS overlay inside the launcher, not the system QS. Now event-driven (no 1.5 s polling), animated tile states, ◆/◇ honesty markers, Settings → Hub. |
+| SystemUI probe | Research, **read-only** | Inventories this firmware's theming surface; changes nothing. |
+| System palette | Research, privileged-lite (ADB) | Unchanged from M1; still unverified, not run. |
+| Real shade / status bar / keyguard / AOD restyle | **Requires privileged access** (Tier 3/4) | Not attempted. See `research/README.md`. |
+
+### Files
+| File | Change |
+|---|---|
+| `apps/settingshub/SettingsCatalog.kt` | **New.** Pure catalog: categories, entries, ordered intent actions with public fallbacks, capability badges, accent-insensitive search. |
+| `apps/settingshub/SettingsHubActivity.kt` | **New.** Hub UI (HUD core ring, search, legend, live controls, category panels, Nothing OS discovery, tile offers); resolves every row on-device before showing it. |
+| `system/tiles/NexusTiles.kt` | **New.** Torch, Eco FX, Calculator, Settings Hub, Shell tiles; PendingIntent launch on Android 14+; `unlockAndRun` on the lock screen; work only while QS is open. |
+| `ui/control/ControlCenter.kt` | Polling loop → resume/action-driven re-reads; animated tile energy/press; LIVE ◆ markers; Settings → Hub. |
+| `call/CallManager.kt`, `ui/fx/Shaders.kt`, `AndroidManifest.xml` | Real lint errors fixed: notification-permission check, API-33 annotation, optional telephony feature. |
+| `app/lint-baseline.xml`, `app/build.gradle.kts` | Lint baseline (pre-existing false positives); version 1.1.0-m2 (code 2). |
+| `gradle/gradle-daemon-jvm.properties` | Gradle daemon pinned to JDK 21 — builds even when Studio/terminal default to JDK 25. |
+| `res/drawable/ic_tile_*.xml`, `ic_hub_foreground.xml`, `mipmap-anydpi-v26/ic_settings_hub.xml`, `values/strings.xml` | Icons and labels. |
+| `research/README.md`, `research/systemui-probe/nexus-systemui-probe.ps1` | **New.** Research module overview and read-only probe. |
+| `tools/make-source-zip.ps1` | **New.** Reproducible source ZIP. |
+| `docs/INSTALL.md` | **New.** Safe install guide. |
+| `app/src/test/.../SettingsCatalogTest.kt` | **New.** 6 tests (unique ids, public fallback on every row, panel/LIVE invariants, category coverage, search). |
+
+**Verified here:** clean `assembleDebug` ✔, `assembleRelease` (R8) ✔, `lintDebug` ✔ (no new errors), 63/63 unit tests ✔,
+packaged manifest checked with `aapt2` (3 launcher icons, 5 QS tiles).
+**Not verified:** anything on the phone.
+
+### Not done in milestone 2 — and why
+- **Matching the reference screenshots** (home, app-open animations, widgets, theme customisation): the
+  screenshots are still not in the project or the conversation, so I could not compare against them and
+  did not guess at redesigns. Put them in `docs/reference/` and they become the spec for milestone 3.
+- **App-opening animation tuning** needs on-device frame measurements first (Nothing OS may override the
+  window animation); see the Performance section of `docs/TESTING.md`.

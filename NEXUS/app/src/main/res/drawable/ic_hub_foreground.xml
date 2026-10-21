@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NEXUS Settings Hub: hexagon frame, energy ring and four status segments -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M54,26 L78.25,40 L78.25,68 L54,82 L29.75,68 L29.75,40 Z"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FF00E5FF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,40 A14,14 0 1,1 53.99,40 Z"
+        android:strokeWidth="3"
+        android:strokeColor="#FF00E5FF"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M54,47 A7,7 0 1,1 53.99,47 Z"
+        android:fillColor="#FFFF2BD6" />
+</vector>
