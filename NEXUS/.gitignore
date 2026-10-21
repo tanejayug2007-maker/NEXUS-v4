@@ -14,3 +14,6 @@
 # research experiment backups (device-specific)
 /research/**/palette-backup.txt
 /research/**/reports/
+
+# Kotlin 2.x compiler session cache
+.kotlin/

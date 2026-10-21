@@ -305,8 +305,12 @@ private fun LivePreview(onCharge: () -> Unit) {
                     Modifier.fillMaxSize().onSizeChanged { center = Offset(it.width / 2f, it.height / 2f) }.padding(16.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.entrance(0)) {
-                        if (nx.matrixClock) DotMatrixText("20:50", pitch = 4.dp, color = p.text)
-                        else Text("20:50", style = nx.display(34f, p.text, weight = 300))
+                        // the real time, as the home screen would show it
+                        val now by com.nexus.launcher.ui.home.rememberNow(false)
+                        val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
+                        val time = now.format(java.time.format.DateTimeFormatter.ofPattern(if (is24) "HH:mm" else "hh:mm"))
+                        if (nx.matrixClock) DotMatrixText(time, pitch = 4.dp, color = p.text)
+                        else Text(time, style = nx.display(34f, p.text, weight = 300))
                         Spacer(Modifier.weight(1f))
                         Text("LIVE PREVIEW", style = nx.label(9f, p.accent))
                     }

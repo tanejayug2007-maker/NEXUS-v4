@@ -45,7 +45,7 @@ fun Modifier.nexusAppBackground(): Modifier = composed {
         val gridAlpha = if (hud) 0.06f else 0f
         val glow = Brush.radialGradient(
             listOf(p.accent.copy(alpha = if (p.isLight) 0.06f else 0.10f), Color.Transparent),
-            center = Offset(size.width * 0.5f, 0f), radius = size.width * 0.9f,
+            center = Offset(size.width * 0.5f, 0f), radius = (size.width * 0.9f).coerceAtLeast(1f),
         )
         val fade = Brush.verticalGradient(listOf(Color.Transparent, p.bg), startY = size.height * 0.35f, endY = size.height)
         val bracket = 18.dp.toPx()

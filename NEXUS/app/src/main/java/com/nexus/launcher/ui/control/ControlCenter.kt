@@ -281,7 +281,7 @@ private fun ControlContent(
             }
             item(span = { GridItemSpan(maxLineSpan) }, key = "foot") {
                 Text(
-                    "◆ LIVE = NEXUS changes the real setting · ◇ = opens the official Android panel · swipe up or tap outside to close",
+                    "◆ live control · ◇ opens the official Android panel · swipe up to close",
                     style = nx.label(8.5f, p.textFaint), modifier = Modifier.padding(top = 6.dp),
                 )
             }

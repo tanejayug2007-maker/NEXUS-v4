@@ -321,6 +321,9 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
     val prewarmSpec = com.nexus.launcher.ui.components.rememberIconSpec(cfg.iconSize)
     val prewarmDrawer = com.nexus.launcher.ui.components.rememberIconSpec(cfg.iconSize * 0.9f)
     LaunchedEffect(apps, prewarmSpec, prewarmDrawer) {
+        // Let the icons that are actually on screen (orbit, dock, grid) claim the CPU first;
+        // the drawer/grid prewarm then fills the cache in the background.
+        kotlinx.coroutines.delay(1200)
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
             apps.forEach { a ->
                 val o = cfg.iconOverrides[a.key.id]
@@ -466,6 +469,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
                             modifier = Modifier.entrance(12).parallax(0.25f * pStrength),
                         )
                     }
+                    // The HUD draws its telemetry ticker in the bottom margin: keep the dock above it.
+                    if (cfg.hud && cfg.hudTicker) Spacer(Modifier.height(24.dp))
                     Spacer(Modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)))
                 }
                 if (placing != null) {
@@ -476,7 +481,8 @@ fun HomeRoot(vm: LauncherViewModel, actions: LauncherActions) {
             if (cfg.hud) {
                 HudChrome(
                     battery = battery, net = net, clock = hudClock, topInsetPx = topPx, bottomInsetPx = bottomPx,
-                    ticker = cfg.hudTicker, modifier = Modifier.entrance(14).parallax(-0.25f * pStrength),
+                    // paused under overlays (drawer, deck, feed…) so it doesn't show through them
+                    ticker = cfg.hudTicker && overlay == Overlay.None, modifier = Modifier.entrance(14).parallax(-0.25f * pStrength),
                 )
             }
 

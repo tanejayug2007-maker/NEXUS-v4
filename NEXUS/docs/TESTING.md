@@ -1,12 +1,21 @@
 # NEXUS test plan
 
-**Status (milestone 3, 2026-10-21):** a clean build (`clean assembleDebug assembleRelease lintDebug`)
-succeeds and all 65 JVM unit tests pass on Windows 11 with JDK 21. **No item below the "Automated" section has been
+**Status (milestone 4, 2026-10-21):** `assembleDebug assembleRelease lintDebug` succeed and all 65 JVM unit
+tests pass. Milestone 4 items marked *(emulator ✓)* were verified on an Android emulator (API 37), **not** on the phone on Windows 11 with JDK 21. **No item below the "Automated" section has been
 verified on a device yet** — no phone was attached to the build machine. Tick items off on the
 Nothing Phone (3a) before trusting them.
 
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
+
+## Milestone 4
+- [ ] *(emulator ✓)* Long-press empty home space (orbit and Core pages), keep holding → radial appears; no crash. Release in centre cancels; flick + release launches.
+- [ ] *(emulator ✓)* Radial opened low on the screen: its label sits above the ring, not on the dock; opened higher: label centred under the ring.
+- [ ] *(emulator ✓)* HUD ticker runs below the dock, not through the icons; open the drawer / Control Deck → no ticker showing through.
+- [ ] *(emulator ✓)* Back never leaves NEXUS at rest; Back/Home close the drawer, deck and feed; Home from an app returns to NEXUS.
+- [ ] Cold start (force-stop NEXUS, press Home): orbit and dock icons appear quickly, no long empty-circle phase. Compare with the milestone 3 APK if you like.
+- [ ] *(emulator ✓)* Studio › live preview clock shows the current time in your 12/24-hour format.
+- [ ] Everything from milestones 1–3 still works (Calculator, Settings Hub, QS tiles, deck styles, screen-saver intro).
 
 ## Milestone 3
 - [ ] Studio › Control center: Deck style Glass / Hex / Ring / Minimal changes the preview tiles instantly and the real Control Deck; 2 ↔ 3 columns; header switch hides the clock/battery row. Toggling a tile animates its fill / ring / underline.

@@ -312,3 +312,28 @@ version 1.2.0-m3 (code 3).
   run yet. Its report is what decides the next research step; nothing new can be learned from the PC side.
 - **Lock screen**: the real keyguard remains Tier 4. The optional NEXUS lock layer (a simulation in front of
   the keyguard) is unchanged and stays off by default.
+
+---
+
+## 12. Milestone 4 — original design, fixed and faster (2026-10-21)
+
+A first milestone-4 attempt restyled the interface toward the reference screenshots; you rejected it and it was
+fully reverted. This milestone keeps the **original NEXUS V4 design unchanged** and fixes what running the
+real app on an Android emulator (API 37, read-only AVD, never the phone) exposed.
+
+| Problem found on the emulator | Fix | Visual change |
+|---|---|---|
+| Radial launcher crashed the launcher on its first frame (0-radius radial gradient) — affects M1–M3 APKs | Skip drawing until the ring has a size | None |
+| Same crash class possible in charging, link-sync, particle/aurora backgrounds, app chrome when laid out at 0 size | Radius ≥ 1 px guards | None |
+| HUD telemetry ticker drawn through the dock icons | Reserved 24 dp band under the dock when the ticker is on | Dock sits 24 dp higher |
+| Ticker visible through the drawer / Control Deck / feed | Ticker paused while an overlay is open | None |
+| Radial label fixed at −80 dp (not centred) and drawn over the dock when opened low | Centred; flips above the ring near the dock | Label position only |
+| Icons: ~90 renders for 24 apps on cold start (duplicates), prewarm competing with visible icons | In-flight de-duplication in `IconEngine.load`; prewarm starts 1.2 s after the first frame | None |
+| Studio "LIVE PREVIEW" clock hard-coded to 20:50 | Real time, 12/24-hour aware | None |
+
+Verified on the emulator: radial on orbit and Core pages (no crash), Back/Home/overlay navigation, dock launch and
+return, ticker and label positions, icon timings (3 cold starts each, before/after). A framework-only crash seen once
+during `adb install -r` (process restarted mid package-replace) did not reproduce in repeated runs without reinstalling.
+
+**Not verified on the phone.** Performance numbers are debug-build, emulator (software GPU) figures — use them only as
+before/after comparisons, not as phone performance.

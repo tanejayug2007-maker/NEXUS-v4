@@ -4,10 +4,25 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
-> **Status (milestone 3, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 65 unit
+> **Status (milestone 4, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 65 unit
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 4 — the original V4 design, fixed and faster
+
+No redesign: the original NEXUS V4 look (holo-frame hex icons, filled orbit rings, original radial,
+Core, deck and drawer) is unchanged. This milestone fixes what running the real app on an Android
+emulator exposed:
+
+* **Crash fixed:** long-pressing the home screen (radial launcher) crashed NEXUS on its first frame.
+* **Dock / ticker:** the HUD telemetry ticker no longer runs through the dock icons, and pauses under the
+  drawer, Control Deck and other overlays instead of showing through them.
+* **Radial label** is centred under the ring and moves above it when the ring is opened near the dock.
+* **Faster icons on cold start:** concurrent requests share one render and on-screen icons render before
+  the background prewarm (≈90 → ≈75 renders; visible icons ready ≈1.25 s in a debug build on the emulator).
+* **Studio live preview** shows the real time (was a fixed "20:50").
+* Hardening against the same crash class in charging, link-sync, background and app-chrome effects.
 
 ## Milestone 3 — Control Deck styles, shared app chrome, charging screen saver, battery
 

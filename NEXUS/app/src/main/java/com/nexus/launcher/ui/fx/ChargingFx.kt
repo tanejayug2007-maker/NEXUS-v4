@@ -108,7 +108,7 @@ fun ChargingVisual(battery: BatteryState, style: ChargingAnim, intensity: Float,
     Canvas(modifier) {
         val t = clock.value * (0.6f + k)
         val c = center
-        val r = min(size.width, size.height) / 2f * 0.82f
+        val r = (min(size.width, size.height) / 2f * 0.82f).coerceAtLeast(1f)
         when (style) {
             ChargingAnim.ENERGY_REACTOR -> {
                 drawCircle(Brush.radialGradient(listOf(fx.copy(alpha = 0.35f * k), Color.Transparent), c, r * 0.9f), r * 0.9f, c)

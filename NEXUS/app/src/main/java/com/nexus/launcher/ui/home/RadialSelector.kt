@@ -1,5 +1,8 @@
 package com.nexus.launcher.ui.home
 
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -69,12 +72,15 @@ fun RadialSelector(
     val n = slots.coerceIn(3, 10)
     val sel = radialSlot(state, dead, n)
 
-    Box(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screenH = constraints.maxHeight.toFloat()
         Canvas(Modifier.fillMaxSize()) {
             val k = appear.value
             drawRect(Color.Black, alpha = 0.45f * k)
             val c = state.center
             val r = radius * k
+            // First frame: appear == 0 → radius 0, and a 0-radius gradient throws. Nothing to draw yet.
+            if (r < 1f) return@Canvas
             drawCircle(Brush.radialGradient(listOf(p.accent.copy(alpha = 0.18f), Color.Transparent), c, r * 1.5f), r * 1.5f, c)
             drawCircle(p.accent, r, c, alpha = 0.35f, style = Stroke(r * 0.55f))
             drawCircle(p.accent, r * 1.28f, c, alpha = 0.6f, style = Stroke(1.5f))
@@ -119,10 +125,16 @@ fun RadialSelector(
             sel >= 0 -> apps.getOrNull(sel)?.let(labelOf) ?: "Empty slot"
             else -> "Release in centre to cancel"
         }
-        if (showLabels || sel < 0) Text(
-            nx.caps(label),
-            style = nx.label(10f, p.text),
-            modifier = Modifier.offset { IntOffset((state.center.x - 80.dp.toPx()).roundToInt(), (state.center.y + radius * 1.5f).roundToInt()) },
-        )
+        if (showLabels || sel < 0) {
+            // Centred under the ring; above it when the ring sits low (the dock lives down there).
+            val below = state.center.y + radius * 1.5f
+            val y = if (below > screenH - with(density) { 170.dp.toPx() }) state.center.y - radius * 1.5f - with(density) { 20.dp.toPx() } else below
+            Text(
+                nx.caps(label),
+                style = nx.label(10f, p.text),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().offset { IntOffset(0, y.roundToInt()) },
+            )
+        }
     }
 }

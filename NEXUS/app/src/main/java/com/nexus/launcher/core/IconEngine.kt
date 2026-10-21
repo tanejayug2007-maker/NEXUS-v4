@@ -29,7 +29,13 @@ import android.util.LruCache
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.res.ResourcesCompat
+import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -108,9 +114,29 @@ class IconEngine(private val context: Context) {
 
     fun cached(app: AppInfo, spec: IconSpec, overrideUri: String?): ImageBitmap? = cache.get(key(app, spec, overrideUri))
 
-    suspend fun load(app: AppInfo, spec: IconSpec, overrideUri: String?): ImageBitmap = withContext(Dispatchers.Default) {
+    /** Renders in progress, so concurrent requests for the same icon share one render. */
+    private val inFlight = ConcurrentHashMap<String, Deferred<ImageBitmap>>()
+    private val renderScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /**
+     * Cached bitmap, or one render shared by every caller asking for the same key at the same time
+     * (e.g. the background prewarm and the visible icon on a cold start). A caller that is cancelled
+     * doesn't cancel the render: the result still lands in the cache for the next request.
+     */
+    suspend fun load(app: AppInfo, spec: IconSpec, overrideUri: String?): ImageBitmap {
         val k = key(app, spec, overrideUri)
-        cache.get(k) ?: render(app, spec, overrideUri).also { cache.put(k, it) }
+        cache.get(k)?.let { return it }
+        val job = inFlight.computeIfAbsent(k) {
+            renderScope.async(start = CoroutineStart.LAZY) {
+                try {
+                    render(app, spec, overrideUri).also { cache.put(k, it) }
+                } finally {
+                    inFlight.remove(k)
+                }
+            }
+        }
+        job.start()
+        return job.await()
     }
 
     /** Plain bitmap for arbitrary drawables (shortcut icons, widget previews, notification apps). */
@@ -377,3 +403,4 @@ class IconPack(private val context: Context, val packageName: String) {
         }
     }
 }
+

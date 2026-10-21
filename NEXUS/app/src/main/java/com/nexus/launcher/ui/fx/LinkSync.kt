@@ -117,7 +117,7 @@ private fun LinkSyncContent(holdMs: Int, onLinked: () -> Unit) {
         Canvas(Modifier.size(300.dp)) {
             val t = clock.value
             val c = center
-            val r = size.minDimension / 2f * 0.8f
+            val r = (size.minDimension / 2f * 0.8f).coerceAtLeast(1f)
             val k = charge.value
             // concentric "neural" whorls
             for (ring in 0 until 7) {

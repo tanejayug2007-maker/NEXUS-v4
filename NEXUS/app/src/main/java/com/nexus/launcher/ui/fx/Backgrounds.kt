@@ -79,7 +79,7 @@ fun NexusBackground(animate: Boolean, modifier: Modifier = Modifier) {
                     Triple(p.accent2, Offset(size.width * (0.75f + 0.12f * sin(t * 1.1f + 2f)), size.height * (0.55f + 0.1f * sin(t * 0.7f + 1f))), size.width * 0.8f),
                     Triple(p.fx, Offset(size.width * (0.45f + 0.2f * sin(t * 0.6f + 4f)), size.height * (0.85f + 0.05f * sin(t + 3f))), size.width * 0.7f),
                 )
-                blobs.forEach { (c, o, r) -> drawCircle(Brush.radialGradient(listOf(c.copy(alpha = a), Color.Transparent), o, r), r, o) }
+                if (size.minDimension >= 1f) blobs.forEach { (c, o, r) -> drawCircle(Brush.radialGradient(listOf(c.copy(alpha = a), Color.Transparent), o, r), r, o) }
             }
         })
         BackgroundStyle.WALLPAPER -> Box(modifier.background(Brush.verticalGradient(listOf(Color.Black.copy(0.55f), Color.Black.copy(0.15f), Color.Black.copy(0.6f)))))
@@ -142,7 +142,7 @@ fun NexusBackground(animate: Boolean, modifier: Modifier = Modifier) {
             val ph = FloatArray(n) { rnd.nextFloat() * 6.28f }
             val glowBrush = Brush.radialGradient(
                 listOf(p.accent.copy(alpha = 0.10f * (0.4f + spec.glow)), Color.Transparent),
-                center = Offset(size.width * 0.5f, size.height * 0.35f), radius = size.width * 0.9f,
+                center = Offset(size.width * 0.5f, size.height * 0.35f), radius = (size.width * 0.9f).coerceAtLeast(1f),
             )
             onDrawBehind {
                 drawRect(glowBrush)
