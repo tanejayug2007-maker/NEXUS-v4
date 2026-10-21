@@ -201,7 +201,7 @@ private fun GlyphChip(g: GlyphBinding, deletable: Boolean, onDelete: () -> Unit)
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         GlyphPreview(g.points, Modifier.size(42.dp))
-        Text(g.name.uppercase().take(10), style = nx.label(8f, p.textDim), maxLines = 1)
+        Text(g.name.uppercase(), style = nx.label(8f, p.textDim), maxLines = 2, textAlign = androidx.compose.ui.text.style.TextAlign.Center, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
         if (deletable) Text("TAP ✕", style = nx.label(7f, p.textFaint))
     }
 }

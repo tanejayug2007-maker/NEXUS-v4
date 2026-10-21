@@ -1,5 +1,6 @@
 package com.nexus.launcher.ui.settings
 
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
@@ -357,6 +358,91 @@ private fun SystemSection(host: StudioHost) {
         PermRow("Gesture helper (accessibility)", "Double-tap lock, open shade/QS reliably. Reads no screen content.", a11y) { host.openAccessibility() }
         PermRow("Modify system settings", "Brightness dial and auto-rotate toggle", write) { host.openWriteSettings() }
         PermRow("Do Not Disturb access", "Real DND toggle in the control center", dnd) { host.openDndAccess() }
+        SystemColorsPanel(tick)
+        CameraProbePanel()
+    }
+}
+
+/**
+ * EXPERIMENTAL: recolours the REAL system UI (Quick Settings, shade, Settings, Material You apps) with the
+ * NEXUS accent through Android's own Material You setting. Needs a one-time adb grant; never root.
+ */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SystemColorsPanel(tick: Int) {
+    val nx = LocalNexus.current
+    val p = nx.palette
+    val ctx = LocalContext.current
+    var refresh by remember { mutableIntStateOf(0) }
+    val granted = remember(tick, refresh) { com.nexus.launcher.system.SystemPalette.canWrite(ctx) }
+    val applied = remember(tick, refresh) { com.nexus.launcher.system.SystemPalette.isNexusApplied(ctx) }
+    var style by remember { mutableStateOf("VIBRANT") }
+    SectionHeader("System colours · experimental")
+    GlassPanel(Modifier.fillMaxWidth(), highlight = applied) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                "Paints the real Quick Settings, notification shade, Settings and Material You apps with your NEXUS accent, " +
+                    "using Android's own colour setting. Colours only: shapes and layouts stay Nothing OS's. No root. " +
+                    "Not yet verified on Nothing OS: if nothing changes, press Restore.",
+                style = nx.body(12f, color = p.textDim),
+            )
+            if (!granted) {
+                Text("Needs a one-time permission over USB (revoke with pm revoke):", style = nx.body(12f, color = p.textDim))
+                Text(com.nexus.launcher.system.SystemPalette.GRANT_COMMAND, style = nx.label(9f, p.accent))
+            } else {
+                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    com.nexus.launcher.system.SystemPalette.STYLES.take(4).forEach { st ->
+                        HoloChip(st.lowercase().replace('_', ' '), style == st, { style = st })
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    NxButton("Apply NEXUS colours", {
+                        val ok = com.nexus.launcher.system.SystemPalette.apply(ctx, p.accent.toArgb(), style)
+                        com.nexus.launcher.system.SystemControls.toast(ctx, if (ok) "Applied — pull down Quick Settings to see it" else "Couldn't write the setting")
+                        refresh++
+                    }, primary = true)
+                    NxButton("Restore", {
+                        val ok = com.nexus.launcher.system.SystemPalette.restore(ctx)
+                        com.nexus.launcher.system.SystemControls.toast(ctx, if (ok) "Original system colours restored" else "Couldn't restore")
+                        refresh++
+                    })
+                }
+                Text(if (applied) "Status: NEXUS colours active" else "Status: system colours unchanged", style = nx.label(9.5f, if (applied) p.accent else p.textFaint))
+            }
+        }
+    }
+}
+
+/** READ-ONLY: what the phone's camera stack exposes to apps (no permission, no camera opened). */
+@Composable
+private fun CameraProbePanel() {
+    val nx = LocalNexus.current
+    val p = nx.palette
+    val ctx = LocalContext.current
+    var result by remember { mutableStateOf<List<com.nexus.launcher.system.CameraProbe.Lens>?>(null) }
+    SectionHeader("Camera capabilities · read-only")
+    GlassPanel(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                "Checks what a third-party camera (a future NEXUS camera front end) could use on this phone. " +
+                    "The Nothing Camera app is never touched; no camera is opened.",
+                style = nx.body(12f, color = p.textDim),
+            )
+            val r = result
+            if (r == null) {
+                NxButton("Run probe", { result = com.nexus.launcher.system.CameraProbe.probe(ctx) })
+            } else {
+                Text(com.nexus.launcher.system.CameraProbe.verdict(r), style = nx.body(12.5f))
+                r.forEach { l ->
+                    Text(
+                        "#${l.id} ${l.facing} · ${l.focalLengthsMm.joinToString("/") { "%.1f".format(it) }} mm" +
+                            (if (l.logicalMulti) " · logical (${l.physicalIds.joinToString()})" else "") +
+                            " · ext: ${l.extensions.ifEmpty { listOf("none") }.joinToString()}",
+                        style = nx.label(9f, p.textDim),
+                    )
+                }
+            }
+        }
     }
 }
 

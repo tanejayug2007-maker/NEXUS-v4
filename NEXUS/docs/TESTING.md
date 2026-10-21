@@ -1,12 +1,19 @@
 # NEXUS test plan
 
-**Status (milestone 4, 2026-10-21):** `assembleDebug assembleRelease lintDebug` succeed and all 65 JVM unit
+**Status (milestone 5, 2026-10-21):** 73 unit tests pass. **Status (milestone 4):** `assembleDebug assembleRelease lintDebug` succeed and all 65 JVM unit
 tests pass. Milestone 4 items marked *(emulator ✓)* were verified on an Android emulator (API 37), **not** on the phone on Windows 11 with JDK 21. **No item below the "Automated" section has been
 verified on a device yet** — no phone was attached to the build machine. Tick items off on the
 Nothing Phone (3a) before trusting them.
 
 ## Automated
 - [x] `gradlew testDebugUnitTest` — LayoutOps (drag/drop, folders, widgets, reflow, uninstall pruning), Search ranking, config JSON round-trip / forward compatibility, Calculator engine (exact decimals, precedence, %, trig, errors, formatting) and Calculator input editing.
+
+## Milestone 5
+- [ ] `tools\phone-test\nexus-phone-test.ps1` (read-only) then `-Install`: prints PASS; Nothing Launcher still default; Nothing Camera, Glyph, Essential Space untouched.
+- [ ] *(emulator ✓)* Studio › System colours without the adb grant: shows the grant command, changes nothing.
+- [ ] *(emulator ✓)* After `adb shell pm grant com.nexus.launcher android.permission.WRITE_SECURE_SETTINGS`: Apply → pull down Quick Settings → NEXUS cyan; Restore → original colours. **On Nothing OS: record whether QS, shade and Settings change at all.** Revoke with `pm revoke` when done.
+- [ ] *(emulator ✓)* Studio › Camera capabilities › Run probe: lists every camera id; **note the verdict on the phone** (extensions present or not).
+- [ ] Glyph Pad: known-glyph names are complete (e.g. "CONTROL DECK"), up to two lines.
 
 ## Milestone 4
 - [ ] *(emulator ✓)* Long-press empty home space (orbit and Core pages), keep holding → radial appears; no crash. Release in centre cancels; flick + release launches.

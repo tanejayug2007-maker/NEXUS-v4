@@ -23,6 +23,17 @@ without them. Features that need one show a "grant" button instead of failing.
 2. **Settings › System › Developer options** → turn on **USB debugging**.
    (This does not unlock anything and can be turned off afterwards.)
 
+## 1b. Easiest safe route: the test script (USB)
+From the `NEXUS` folder on the PC, with the phone connected and USB debugging allowed:
+```
+powershell -ExecutionPolicy Bypass -File tools\phone-test\nexus-phone-test.ps1
+powershell -ExecutionPolicy Bypass -File tools\phone-test\nexus-phone-test.ps1 -Install -Apk ..\dist\milestone5\NEXUS-m5-debug.apk
+```
+The first command only **reads** (default Home app, Nothing packages, camera app, Glyph packages, storage).
+`-Install` installs NEXUS as an ordinary app (no permissions granted, launcher not changed), then re-checks and prints
+**PASS** only if your Home/Phone/Camera apps and every Nothing/Glyph package are unchanged.
+`-Uninstall` removes NEXUS. Reports go to `tools\phone-test\reports\`.
+
 ## 2. Install the APK — choose one
 
 **A. With a USB cable (recommended)**

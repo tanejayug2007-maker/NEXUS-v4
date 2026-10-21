@@ -4,10 +4,22 @@ A real Android **Home app** (not a wallpaper or a full-screen demo) written in K
 OLED-black holographic UI, dot-matrix typography, cinematic launch / unlock / charging effects, a
 notification feed, a spaceship-style control deck and a full Customization Studio.
 
-> **Status (milestone 4, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 65 unit
+> **Status (milestone 5, 2026-10-21): builds cleanly** — `assembleDebug`, `assembleRelease`, `lintDebug` and all 73 unit
 > tests pass on Windows 11 with JDK 21. Features have **not yet been verified on the phone**; follow
 > [`docs/TESTING.md`](docs/TESTING.md) before relying on any of them.
 > **What NEXUS can and cannot change on Nothing OS without root:** [`docs/NEXUS_OS_AUDIT.md`](docs/NEXUS_OS_AUDIT.md).
+
+## Milestone 5 — safe phone testing and real system integration (track B)
+
+* **Safe phone test script** (`tools/phone-test/nexus-phone-test.ps1`): read-only baseline, plain install, and a
+  PASS/FAIL check that your default apps and every Nothing/Glyph package are unchanged.
+* **System colours (experimental, Studio › System):** recolours the *real* Quick Settings, shade and Settings with the
+  NEXUS accent through Android's own Material You setting — no root, one-time `adb pm grant`, Restore button.
+  Verified on a stock Android emulator; Nothing OS not yet verified.
+* **Camera capabilities probe (read-only):** shows whether a NEXUS camera front end could ever use the vendor's
+  Night/HDR/Bokeh processing. The Nothing Camera is never touched.
+* **Per-feature system integration answer:** [`docs/SYSTEM_INTEGRATION.md`](docs/SYSTEM_INTEGRATION.md).
+* Original V4 design unchanged; Glyph Pad shows full glyph names.
 
 ## Milestone 4 — the original V4 design, fixed and faster
 

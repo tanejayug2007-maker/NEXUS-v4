@@ -25,6 +25,13 @@
         android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 
+    <!-- EXPERIMENTAL system colours: only usable after a one-time manual
+         "adb shell pm grant com.nexus.launcher android.permission.WRITE_SECURE_SETTINGS".
+         Never granted automatically; without it NEXUS just shows instructions. -->
+    <uses-permission
+        android:name="android.permission.WRITE_SECURE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
+
     <!-- Optional NEXUS lock layer (shown over the secure lock screen when the screen turns on) -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
