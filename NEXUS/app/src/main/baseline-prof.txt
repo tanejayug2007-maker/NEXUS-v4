@@ -1,0 +1,4 @@
+# Baseline profile: hot code paths compiled ahead of time by ART (installed by profileinstaller).
+# Wildcards cover NEXUS's own code; Compose runtime/ui libraries ship their own profiles.
+HSPLcom/nexus/launcher/**;->**(**)**
+Lcom/nexus/launcher/**;
